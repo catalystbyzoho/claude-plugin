@@ -1,0 +1,24 @@
+{
+  "name": "catalyst-by-zoho",
+  "owner": {
+    "name": "Catalyst by Zoho",
+    "email": "support@zohocatalyst.com"
+  },
+  "description": "Claude code marketplace for Catalyst by Zoho — full-stack serverless cloud platform.",
+  "plugins": [
+    {
+      "name": "catalyst-by-zoho",
+      "description": "Official Claude Code plugin for Catalyst by Zoho — full-stack serverless cloud platform. With Skills that covers all services, SDKs, CLI, architecture patterns, pricing, migration guides, and Zoho MCP tool-based resource management.",
+      "category": "development",
+      "tags": [
+        "catalyst",
+        "zoho",
+        "serverless",
+        "cloud-services",
+        "backend",
+        "catalyst-by-zoho"
+      ],
+      "source": "./"
+    }
+  ]
+}
