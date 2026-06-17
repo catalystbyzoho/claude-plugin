@@ -75,7 +75,7 @@ The default URL points to the **US** data center. If your Catalyst account lives
 
 See `skills/catalyst-zoho-mcp/references/zoho-mcp.md` for the full list of available tools and verification steps.
 
-## What the skill enables
+## What the plugin enables
 
 - **Architecture recommendations** — get Catalyst-specific service picks for your use case
 - **Production-ready code generation** — correct handler signatures, SDK patterns, `catalyst-config.json`, and project structure that works with `catalyst deploy`
