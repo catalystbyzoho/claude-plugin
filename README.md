@@ -1,29 +1,36 @@
-# Catalyst Agent Skills
+# Catalyst Claude Code Plugin
 
-A collection of AI agent skills for [Catalyst by Zoho](https://catalyst.zoho.com) — the full-stack serverless cloud platform.
+The official Claude Code plugin for [Catalyst by Zoho](https://catalyst.zoho.com) — the full-stack serverless cloud platform.
 
-These skills give Claude Code (and Cowork) deep knowledge of Catalyst's platform, services, SDK patterns, and best practices — enabling it to write deployment-ready Catalyst code, recommend the right architecture, and even manage infrastructure directly via Zoho MCP tools.
+The plugin bundles two things:
+
+- **Modular skills** — a set of focused, service-specific skills that give Claude Code (and Cowork) deep knowledge of Catalyst's platform, services, SDK patterns, and best practices, so it can write deployment-ready Catalyst code and recommend the right architecture.
+- **A pre-configured MCP connector** — the Catalyst MCP server ships wired into `.mcp.json`, letting Claude manage your Catalyst infrastructure directly (create tables, query data, manage cache/buckets) straight from the conversation.
 
 ## What's included
 
+### Skills
+
+The skills are modularised — instead of one monolithic skill, each Catalyst service or concern is its own focused skill, loaded on demand only when relevant. `catalyst-by-zoho` is the top-level entry point that routes to the specialised skills below.
+
 | Skill | Description |
 |-------|-------------|
-| `catalyst-by-zoho` | Complete Catalyst development assistant — covers all services, SDKs, CLI, architecture patterns, pricing, migration guides, and Zoho MCP tool-based resource management |
+| `catalyst-by-zoho` | Top-level entry point — expert Catalyst assistant that routes to the specialised skills below |
+| `catalyst-basics` | Project setup, directory structure, environments, CLI commands, and all Catalyst IDs (Project ID, ZAID, Table ID, Segment ID, Org ID) |
+| `catalyst-functions` | Serverless functions — all 7 types, handler signatures, `catalyst-config.json`, Security Rules, API Gateway routing, file uploads, middleware, and testing |
+| `catalyst-appsail` | AppSail — persistent backend PaaS with managed runtimes (Node.js, Java, Python) and custom Docker containers |
+| `catalyst-datastore` | Data Store — relational cloud database with ZCQL, CRUD, table permissions, and pagination |
+| `catalyst-nosql` | NoSQL — non-relational document database for unstructured/JSON-heavy data with flexible per-item schema |
+| `catalyst-cache` | Cache — in-memory key-value store with TTL for ephemeral session and temporary data |
+| `catalyst-stratus` | Stratus — S3-compatible object storage with upload/download, signed URLs, and multipart upload |
+| `catalyst-slate` | Slate — Git-based frontend hosting for React, Next.js, Vue, Angular, Svelte, Astro, and more |
+| `catalyst-authentication` | Authentication — login/signup, ZAID, Web SDK auth flows, Security Rules, and OAuth via Connections |
+| `catalyst-sdk` | SDKs — initialization and method reference for Node.js, Web, Python, Java, Android, iOS, and Flutter |
+| `catalyst-zia` | Zia Services and QuickML — OCR, Face Analytics, Text Analytics, Object Detection, Barcode Reader, Content Moderation, and AutoML |
+| `catalyst-pricing` | Pricing — free tier limits, pay-as-you-go rates, GB-seconds calculation, and cost estimation |
+| `catalyst-zoho-mcp` | Zoho MCP — manage Catalyst infrastructure (tables, buckets, cache) via `CatalystbyZoho_*` MCP tools using natural language |
 
-> **Note:** For edge-case lookups not covered by the Tier 1 or Tier 2 reference files, the skill instructs agents to search the official Catalyst docs site (`docs.catalyst.zoho.com`) and fetch individual pages — rather than bundling the full documentation dump locally. This keeps the repo lean while ensuring accurate, up-to-date answers.
-
-### The skill covers
-
-- **Compute**: Functions (7 types), AppSail (PaaS with Docker support)
-- **Storage**: Data Store, ZCQL, Stratus (S3-compatible), NoSQL, Cache
-- **Frontend**: Slate (Git-based, SSR support), Web Client Hosting
-- **Integration**: Signals (event bus), Connections (OAuth manager)
-- **Orchestration**: Circuits (workflows), Job Scheduling, Pipelines (CI/CD)
-- **AI/ML**: Zia Services, QuickML, ConvoKraft (chatbots)
-- **Browser Automation**: SmartBrowz (headless browser)
-- **DevOps**: Logs, APM, Alerts, GitHub integration
-- **Developer Tools**: CLI, SDKs (Node.js/Java/Python/Web/Android/iOS/Flutter), REST APIs, VS Code Extension
-- **Zoho MCP**: Create tables, query data, manage buckets/cache directly from LLM conversations
+> **Note:** For edge-case lookups not covered by a skill's bundled reference files, skills instruct agents to search the official Catalyst docs site (`docs.catalyst.zoho.com`) and fetch individual pages — rather than bundling the full documentation dump locally. This keeps the repo lean while ensuring accurate, up-to-date answers.
 
 ## Installation
 
@@ -66,9 +73,9 @@ It comes pre-wired in `.mcp.json`:
 
 The default URL points to the **US** data center. If your Catalyst account lives in another region (EU, IN, AU, JP, SA, CA), update the `url` to the matching DC endpoint — or just ask Claude to switch it for you. The first time Claude invokes a Catalyst tool, you'll be prompted to authorize the connection.
 
-See `skills/references/zoho-mcp-tools.md` for the full list of available tools and verification steps.
+See `skills/catalyst-zoho-mcp/references/zoho-mcp.md` for the full list of available tools and verification steps.
 
-## What the skill enables
+## What the plugin enables
 
 - **Architecture recommendations** — get Catalyst-specific service picks for your use case
 - **Production-ready code generation** — correct handler signatures, SDK patterns, `catalyst-config.json`, and project structure that works with `catalyst deploy`
@@ -76,20 +83,16 @@ See `skills/references/zoho-mcp-tools.md` for the full list of available tools a
 - **Infrastructure management via Zoho MCP** — create tables, insert data, run ZCQL queries, manage cache/buckets directly from the AI conversation
 - **Pricing estimation** — detailed cost breakdowns with unit prices and free tier offsets
 
-## Contributing
-
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
 ## About CATALYST.md
 
 `CATALYST.md` at the repo root is a **lightweight MCP routing stub** — it contains only
 the minimal context needed for MCP-enabled tools (e.g. Claude Code with Zoho MCP connected)
 to discover and invoke `CatalystbyZoho_*` tools correctly.
 
-**It is not a replacement for the full skill.** If you are building a Catalyst application,
-always use `skills/SKILL.md` (and its `references/` folder), which includes
-the complete service catalog, SDK patterns, handler signatures, architecture guidance, and
-all reference docs. `CATALYST.md` alone is insufficient for app development.
+**It is not a replacement for the skills.** If you are building a Catalyst application,
+always use the skills under `skills/` (each with its own `references/` folder), which
+together cover the complete service catalog, SDK patterns, handler signatures, architecture
+guidance, and all reference docs. `CATALYST.md` alone is insufficient for app development.
 
 ## License
 
