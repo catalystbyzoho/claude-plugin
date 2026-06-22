@@ -22,6 +22,6 @@ Use this skill for: "SDK", `zcatalyst-sdk-node`, `zcatalyst-sdk`, "Node.js SDK",
 |-----------|-------------------------------|
 | `references/sdk-nodejs.md` | Node.js SDK — DataStore, ZCQL, Cache, Stratus (multipart, signed URLs), Auth, Email, NoSQL, Job Scheduling, Circuits, Connections, Search, Push Notifications |
 | `references/sdk-web.md` | Web SDK v4 — browser-side auth (hosted/embedded login), generateAuthToken, isUserAuthenticated, signOut, DataStore, Stratus, cross-domain Slate→function pattern |
-| `references/sdk-python.md` | Python SDK — DataStore, ZCQL, Cache, Stratus, Auth, Email, Search, Connections, NoSQL, Push Notifications, Zia, SmartBrowz |
+| `references/sdk-python.md` | Python SDK — DataStore, ZCQL, Cache, Stratus, Auth, Email, Search, Connections, NoSQL, Push Notifications, Job Scheduling, Circuits, Zia, SmartBrowz |
 | `references/sdk-java.md` | Java SDK — Maven setup, DataStore, ZCQL, Cache, SmartBrowz (Selenium, PDF) |
 | `references/sdk-mobile.md` | Android (Kotlin), iOS (Swift), Flutter (Dart) — auth, DataStore, ZCQL, Stratus, Push Notifications, Search |

@@ -198,3 +198,12 @@ APM is available for Java functions (and Node.js). Python is NOT supported.
 - P50/P95/P99 response times
 - Top 100 slowest executions with full traces
 - Breakdown of SDK calls (DataStore, Cache, etc.)
+
+## Common Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `NullPointerException` on `ZCatalystApp.getInstance()` | SDK not initialized before use | Call `ZCatalystApp.initializeApp(context)` in `Application.onCreate()` before any SDK call |
+| `UnauthorizedException` in Job/Cron function | SDK initialized without admin scope | Use `ZCatalystApp.initializeApp(context, ZCatalystApp.RequestScope.ADMIN)` for background functions |
+| `ClassNotFoundException` for Catalyst classes | Dependency not included in `pom.xml` / `build.gradle` | Add `zcatalyst-sdk-java` dependency; ensure JAR is in the function's `lib/` directory for deployed functions |
+| DataStore query returns empty result set | Table name or column name case mismatch | Table and column names in ZCQL are case-sensitive; verify in Console → Data Store |

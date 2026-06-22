@@ -104,8 +104,21 @@ Contains `project_id`, `env_id`, `project_domain`, and `timezone`. If missing, `
 }
 ```
 
-Valid `type` values: `basicio`, `advancedio`, `event`, `cron`, `job`, `integration`, `browserlogic`  
-Valid `stack` values: `node20` *(recommended)*, `node14`, `node16`, `node18`, `java17`, `java11`, `java8`, `python39`
+Valid `type` values (use exactly as shown — do not change this after function creation):
+
+| Function Type | `type` value |
+|--------------|-------------|
+| Basic I/O | `basicio` |
+| Advanced I/O | `advancedio` |
+| Cron | `cron` |
+| Job | `job` |
+| Event | `event` |
+| Integration | `integration` |
+| Browser Logic | `browserlogic` |
+
+> `browserlogic` — NOT `browselogic`.
+
+Valid `stack` values: `node24` *(recommended)*, `node22`, `node20`, `node18`, `node16`, `node14`, `node12`, `java25`, `java21`, `java17`, `java11`, `java8`, `python_3_13`, `python_3_12`, `python_3_11`, `python_3_10`
 
 ---
 
@@ -226,16 +239,16 @@ The default org affects everything:
 
 > **Cannot delete the default org.** Set a different org as default before attempting to delete.
 
-### Accessing the multi-org portal
+### Accessing the multi-org organization
 
 Console → profile icon (top-left) → Organizations dropdown → **Manage Organizations**
 
-The portal shows each org's unique ID and console URL.
+The organization view shows each org's unique ID and console URL.
 
 ### Switching organizations via CLI
 
 ```bash
-catalyst auth:whoami       # shows current active org
+catalyst whoami            # shows current logged-in user
 catalyst switch:org        # interactive org selector (arrow-key menu)
 ```
 
@@ -278,3 +291,12 @@ catalyst project:import --file ./my-project.zip
 | Duplicate a project for a new client | Export → Import as new project in same or different org |
 | Test a GitHub-hosted project | Clone repo → generate ZIP → import and test |
 | CI/CD project templating | Script `catalyst project:export` + `catalyst project:import` |
+
+## Common Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `catalyst init` fails with "project already exists" | Re-running init in a directory that already has `catalyst.json` | Delete `catalyst.json` and `.catalystrc` and re-run, or use `catalyst init` in a fresh directory |
+| `No project found` when running `catalyst deploy` | Working directory has no `catalyst.json` | Run `catalyst init` first, or `cd` to the correct project root |
+| Environment not switching after `catalyst env:switch` | Session-level env cached | Run `catalyst login` again after switching environments |
+| `Permission denied` on deploy | API key lacks deploy permissions for this project | Confirm the key has Developer or higher role in Console → Project Settings |

@@ -14,10 +14,12 @@ metadata:
 ## How It Works
 
 1. **MCP check first** — Before reading any local files, look for `CatalystbyZoho_*` tools. If available, use MCP to get org ID, project ID, and all resource IDs instead of asking the user.
-2. **Pre-flight** — Confirm `.catalystrc` and `catalyst.json` exist. If missing, stop and direct the user to run `catalyst login` then `catalyst init`.
-3. **Project structure** — Load `references/project-basics.md` for directory layout, `catalyst.json`, IDs, and dev-to-prod checklist.
-4. **CLI questions** — Load `references/cli.md` for the exact command, flags, and safety rules.
-5. **Answer** — Provide the specific ID path or CLI command needed. Never ask the user to manually look up IDs when MCP is connected.
+2. **New to Catalyst?** — If the user is setting up Catalyst for the first time or asking "how do I start", load `references/quick-start.md` for the full walkthrough.
+3. **Console navigation** — If the user asks how to find IDs, create tables, set permissions, or configure CORS in the console, load `references/console-ui-guide.md`.
+4. **Pre-flight** — Confirm `.catalystrc` and `catalyst.json` exist. If missing, stop and direct the user to run `catalyst login` then `catalyst init`.
+5. **Project structure** — Load `references/project-basics.md` for directory layout, `catalyst.json`, IDs, and dev-to-prod checklist.
+6. **CLI questions** — Load `references/cli.md` for the exact command, flags, and safety rules.
+7. **Answer** — Provide the specific ID path or CLI command needed. Never ask the user to manually look up IDs when MCP is connected.
 
 ## Triggers
 
@@ -47,6 +49,8 @@ Load the relevant reference file for detailed information:
 
 | Reference | Contents |
 |-----------|----------|
+| `references/quick-start.md` | First-time setup — install CLI, `catalyst init`, find org/project IDs, add a function, serve locally, deploy, create a Data Store table, configure CORS/Authorized Domains |
+| `references/console-ui-guide.md` | Console navigation — finding Project ID/ZAID/Table ID, creating tables with typed columns, enabling App User permissions (Scopes and Permissions), Authorized Domains + CORS toggle |
 | `references/project-basics.md` | Project directory structure, `catalyst.json`, `.catalystrc`, `catalyst-config.json`, environments, dev-to-prod checklist, all Catalyst IDs (Project ID, ZAID, Table ID, Segment ID, etc.) |
 | `references/cli.md` | Full CLI command reference — all subcommands with flags, Slate/AppSail non-interactive setup, `catalyst serve` port behavior, deploy scoping, safety rules, resource-first development order |
 | `references/architecture.md` | Service selection guide — which Catalyst service to use for which pattern, typical stack combinations, DC availability table for regionally restricted services |

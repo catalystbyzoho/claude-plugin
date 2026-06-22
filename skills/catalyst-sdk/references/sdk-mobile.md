@@ -284,10 +284,12 @@ final putResult = await functions.executePUT("functionName", body: {"key": "valu
 final deleteResult = await functions.executeDELETE("functionName", queryParams: {"id": "123"});
 ```
 
-### File Store & Stratus (Flutter)
+### File Store (Deprecated) & Stratus (Flutter)
+
+> **⚠️ File Store is deprecated.** Not available for accounts created after August 27, 2025. Use Stratus for new projects.
 
 ```dart
-// File Store
+// File Store — migration reference only, do not use for new projects
 final folder = ZCatalystApp.getInstance().getFileStoreInstance().getFolderInstance("folderId");
 final uploadedFile = await folder.uploadFile(file);
 await folder.downloadFile("fileId", savePath: "/path/file.txt", onProgress: (received, total) { });
@@ -312,3 +314,13 @@ try {
   print("HTTP status: ${e.httpStatusCode}");
 }
 ```
+
+## Common Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| Login screen not returning to app (Android) | OAuth redirect URI not registered | Add the Catalyst redirect URI to your Android manifest `<intent-filter>` |
+| `ZCatalystException: Unauthorized` on DataStore | SDK initialized without admin scope in background task | Use admin-scoped init for WorkManager / background jobs |
+| iOS `openURL` not called after login | Missing `application(_:open:options:)` implementation | Implement the URL handler in `AppDelegate` to complete the OAuth callback |
+| Flutter `ZCatalystApp.getInstance()` returns null | `await ZCatalystApp.initializeApp(...)` not awaited before use | Ensure `initializeApp` completes before any SDK call (use `await` in `main()`) |
+| Row update silently fails on Android | Row ID passed as `String` instead of `Long` | Cast row ID to `Long` before passing to `updateRow()` |

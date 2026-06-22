@@ -52,3 +52,12 @@ For services not in the built-in list:
 ## Pricing
 
 Connections is a free feature — no additional cost per token fetch.
+
+## Common Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `Connection not found` | Connection ID wrong or not yet authorized by user | Confirm the connection name in the Connections console and verify the user has completed the OAuth grant |
+| `Token refresh failed` | OAuth app credentials rotated or revoked by third-party | Re-authenticate the connection from the Connections console |
+| `Scope not authorized` | Required OAuth scope was not included during connection setup | Delete and recreate the connection with the correct scopes |
+| `Connection is inactive` | Connection was manually disabled or expired | Re-enable or reconnect from Catalyst Console → Connections |
