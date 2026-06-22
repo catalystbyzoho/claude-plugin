@@ -117,7 +117,7 @@ By default, App Users have **Read-only** access. For Insert/Update/Delete:
 
 ---
 
-## Common Auth Errors
+## Common Errors
 
 ### `getCurrentUser()` returns `null` — collaborator vs app user
 

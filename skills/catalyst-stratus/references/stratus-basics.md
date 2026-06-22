@@ -9,7 +9,7 @@
 - **Encryption**: At rest and in flight when enabled
 - **HIPAA-compliant**: PII/ePHI storage supported
 - **Malware scanning**: Automatic; infected objects deleted immediately
-- **Multipart uploads**: Required for files > 100 MB
+- **Multipart uploads**: Recommended for files ≥ 100 MB (single-shot upload supports up to 250 GB per object)
 - **Third-party migration**: Direct migration from S3 and GCS via console
 
 ## SDK Operations (Node.js)
@@ -19,30 +19,37 @@ const stratus = catalystApp.stratus();
 const bucket = stratus.bucket('my-bucket');
 // Bucket name from Console → Cloud Scale → Stratus
 
-// Upload
-await bucket.putObject({
-  key: 'data/file.json',
-  body: JSON.stringify(data),
+// Upload — positional args: (key, body, options?)
+await bucket.putObject('data/file.json', JSON.stringify(data), {
   contentType: 'application/json'
 });
 
-// Download
-const obj = await bucket.getObject('data/file.json');
+// Download — returns a Readable stream; consume it to get the data
+const fileStream = await bucket.getObject('data/file.json');
+const chunks = [];
+for await (const chunk of fileStream) { chunks.push(chunk); }
+const body = Buffer.concat(chunks).toString(); // or JSON.parse(...) for JSON
 
-// Get specific version (versioning enabled)
-const obj = await bucket.getObject('data/file.json', {
+// Get specific version (versioning enabled) — also returns a stream
+const fileStream = await bucket.getObject('data/file.json', {
   versionId: '01hter85pvexb8s2s2842rpswh'
 });
 
 // Delete
 await bucket.deleteObject('data/file.json');
 
-// List objects
-const objects = await bucket.listObjects({
+// List objects (paginated) — returns { contents, truncated, next_continuation_token }
+// next_continuation_token is ONLY present when truncated is true (more pages exist)
+const objects = await bucket.listPagedObjects({
   prefix: 'data/',
   maxKeys: 100,
-  continuationToken: null  // for pagination
+  continuationToken: nextToken  // pass next_continuation_token from previous response
 });
+
+// List objects (iterable) — async iteration, fetches all pages automatically
+// Requires admin scope: catalyst.initialize(req, { scope: 'admin' })
+const files = bucket.listIterableObjects({ prefix: 'data/', maxKeys: 5 });
+for await (const file of files) { console.log(file); }
 
 // Check if bucket exists
 const exists = await stratus.headBucket('my-bucket');
@@ -52,8 +59,8 @@ const exists = await stratus.headBucket('my-bucket');
 
 ## Upload Size Limits
 
-- **Single-shot upload**: up to **100 MB**
-- **Multipart upload**: required for files > 100 MB
+- **Single-shot upload**: up to **250 GB** per object
+- **Multipart upload**: recommended for files > 100 MB (part size: 5–100 MB each)
 
 ## Multipart Upload (> 100 MB)
 
@@ -61,28 +68,27 @@ const exists = await stratus.headBucket('my-bucket');
 const stratus = catalystApp.stratus();
 const bucket = stratus.bucket('my-bucket');
 
-// Step 1: Initiate
-const upload = await bucket.initiateMultipartUpload({ key: 'large-file.zip' });
-const uploadId = upload.uploadId;
+// Step 1: Initiate — key is a plain string, NOT an object
+// Response: { bucket, key, upload_id, status } — field is upload_id (snake_case)
+const initRes = await bucket.initiateMultipartUpload('large-file.zip');
+const uploadId = initRes['upload_id'];
 
-// Step 2: Upload parts (each 5–100 MB)
-const parts = [];
-for (let i = 0; i < chunks.length; i++) {
-  const part = await bucket.uploadPart({
-    key: 'large-file.zip',
-    uploadId,
-    partNumber: i + 1,
-    body: chunks[i]
-  });
-  parts.push({ partNumber: i + 1, eTag: part.eTag });
-}
-
-// Step 3: Complete
-await bucket.completeMultipartUpload({
-  key: 'large-file.zip',
-  uploadId,
-  parts
+// Step 2: Upload parts — all positional args: (key, uploadId, stream/buffer, partNumber)
+const fileStream = fs.createReadStream('large-file.zip', { highWaterMark: 50 * 1024 * 1024 }); // 50MB parts
+let partNumber = 1;
+const uploadPromises = [];
+fileStream.on('data', (partData) => {
+  uploadPromises.push(bucket.uploadPart('large-file.zip', uploadId, partData, partNumber));
+  partNumber++;
 });
+await new Promise((resolve, reject) => {
+  fileStream.on('end', resolve);
+  fileStream.on('error', reject);
+});
+await Promise.all(uploadPromises);
+
+// Step 3: Complete — positional args: (key, uploadId). No parts array.
+await bucket.completeMultipartUpload('large-file.zip', uploadId);
 ```
 
 ---
@@ -90,10 +96,14 @@ await bucket.completeMultipartUpload({
 ## Signed URLs (time-limited access)
 
 ```javascript
-const url = await bucket.getSignedUrl({
-  key: 'confidential-report.pdf',
-  expiresIn: 3600  // seconds
+// generatePreSignedUrl(key, action, options?)
+// action: 'GET' (download) or 'PUT' (upload)
+const result = await bucket.generatePreSignedUrl('confidential-report.pdf', 'GET', {
+  expiryIn: 3600,       // expiry time in seconds (default: 3600)
+  // activeFrom: '...',  // optional: Unix timestamp — URL inactive before this
+  // versionId: '...'    // optional: for versioned objects
 });
+const url = result.signature;
 // Share this URL — no auth needed to download within the expiry window
 ```
 
@@ -169,3 +179,13 @@ module.exports = async (req, res) => {
 - Server: Node.js (`catalystApp.stratus()`), Java (`ZCStratus.getInstance()`), Python
 - Client: Web SDK, Android SDK, iOS SDK, Flutter SDK
 - REST API: Full support for all Stratus operations
+
+## Common Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `NoSuchBucket` on first upload | Bucket not yet created in Console | Create bucket via Console → Stratus or MCP before any SDK call |
+| Signed URL returns 403 | URL expired (default 15 min) or bucket permissions don't allow public access | Regenerate URL; set bucket ACL to allow anonymous reads if files must be public |
+| Multipart upload never completes | `completeMultipartUpload()` not called after all parts uploaded | Always call `completeMultipartUpload` with the upload ID and part ETags |
+| `busboy` + Stratus: file only partially written | Stream piped to Stratus before `busboy` `file` event fully received | Buffer the stream or use the Stratus pre-signed URL pattern for large files |
+| Object path returns stale content | CDN edge cache not yet invalidated | Stratus doesn't have built-in cache invalidation — append a version query param or use a unique path per upload |

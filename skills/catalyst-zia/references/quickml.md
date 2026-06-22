@@ -70,3 +70,12 @@ Authorization: Zoho-oauthtoken {token}
 | Training compute | 1 model/month | $0.10/model/hour |
 | Predictions | 500/month | $0.001/prediction |
 | Model storage | 1 model active | $5/model/month |
+
+## Common Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| Model training stuck in `PROCESSING` | Dataset too small (< 50 rows) or all rows have the same target value | Add more varied data; QuickML requires at least 50 rows with distribution across classes |
+| Prediction returns `null` | Feature columns in prediction request don't match training column names exactly | Match feature names case-sensitively to training dataset headers |
+| `Model not deployed` error on predict | Model trained but deployment step skipped | Explicitly deploy model from Console → QuickML → Deploy before calling prediction API |
+| Free tier prediction limit hit | 500 predictions/month free tier exhausted | Upgrade plan or wait for next calendar month reset |

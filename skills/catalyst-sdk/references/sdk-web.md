@@ -203,7 +203,9 @@ await bucket.deleteObject("path/to/file.txt");
 
 ---
 
-## File Store
+> **⚠️ Deprecated — migration reference only.** File Store is not available to accounts created after August 27, 2025. For new projects, use **Stratus** (see the Stratus section above). The code below is retained only to help migrate existing integrations.
+
+## File Store (Deprecated)
 
 ```javascript
 const fileStore = catalyst.file;
@@ -258,7 +260,7 @@ const allVars = await catalyst.env.getAll();
 
 ---
 
-## Common Auth Errors
+## Common Errors
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|

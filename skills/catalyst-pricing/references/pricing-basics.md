@@ -203,3 +203,12 @@ Catalyst invoices in the currency attached to the credit card:
 
 For INR rates, visit https://catalyst.zoho.com/pricing.html from an India DC account.
 All estimates in this skill are in USD. For INR pricing, direct users to the official pricing page.
+
+## Common Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| Cost estimate doesn't match invoice | Free tier resets monthly; partial months billed at full rate | Always calculate based on full month usage; free tier is per calendar month |
+| INR pricing differs from USD estimate | Separate regional pricing applies to India DC accounts | Direct India DC users to catalyst.zoho.com/pricing.html for accurate INR rates |
+| Unexpected GB-seconds charge | Cold start overhead counted toward execution time | Cold starts add ~100–300 ms; factor this in for high-frequency functions |
+| Free tier exhausted earlier than expected | Multiple environments (Development + Production) share the same free tier quota | Each Catalyst project counts as one quota pool across all environments |

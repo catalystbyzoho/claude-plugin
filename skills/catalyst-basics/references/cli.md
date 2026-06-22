@@ -128,19 +128,22 @@ catalyst project:reset
 ### `catalyst init`
 Initialize a Catalyst project in the current directory.
 
-**IMPORTANT: ALWAYS use `--non-interactive` when running from an automated agent.**
+**NOTE: `catalyst init` is fully interactive — it has no flags to skip prompts.** The only available flag is `--force`. For automated setups, see the workaround in the Safety Rules section.
 
 ```bash
-catalyst init                                                    # Interactive mode
-catalyst init --force --org <org_id> --project <project_id> --non-interactive  # Non-interactive (REQUIRED for agents)
+catalyst init           # Interactive mode
+catalyst init --force   # Re-initialize, overwriting existing .catalystrc
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--force` | Overwrite existing project config |
-| `--org` | Organization ID |
-| `--project` | Project ID |
-| `--non-interactive` | Skip all prompts (ALWAYS use this in automation) |
+| `--force` | Overwrite existing project config (only available flag) |
+
+**Prompt sequence:**
+1. Select organization (arrow keys)
+2. Select project (arrow keys) — includes `[import a existing project]` and `[create a new project]` options
+3. Select features (space to toggle): `Functions`, `Client`, `AppSail`, `Slate` — optional, press Enter to skip
+4. If Functions: select function type → select runtime → npm-init style questions → install dependencies?
 
 ### `catalyst functions:setup`
 Set up the functions directory structure in the current project.
@@ -173,9 +176,13 @@ catalyst functions:add    # ⚠️ ALWAYS interactive — no --name/--type/--sta
      }
    }
    ```
-   Valid `type` values: `basicio`, `advancedio`, `event`, `cron`, `job`, `integration`, `browserlogic`
-   Valid `stack` values: `node20`, `node18`, `node16`, `node14`, `java17`, `java11`, `java8`, `python39`
-   (Prefer `node20` for new projects — `node14`/`node16` receive no upstream security patches)
+   Valid `type` values: `basicio`, `advancedio`, `cron`, `job`, `event`, `integration`, `browserlogic`
+   (`browserlogic` for Browser Logic — NOT `browselogic`)
+   Valid `stack` values:
+     Node.js: `node24`, `node22`, `node20`, `node18`, `node16`, `node14`, `node12`
+     Java:    `java25`, `java21`, `java17`, `java11`, `java8`
+     Python:  `python_3_13`, `python_3_12`, `python_3_11`, `python_3_10`
+   (Prefer `node24` for new Node.js projects)
 3. Adding the function name to `catalyst.json` → `functions.targets` array:
    ```json
    {
@@ -209,7 +216,7 @@ catalyst appsail:add --name <name> --stack <stack> --source <dir> --build <cmd> 
 | Flag | Description |
 |------|-------------|
 | `--name` | Service name (required) |
-| `--stack` | Runtime stack, e.g. `node18`, `java17`, `python_3_9` (required) |
+| `--stack` | Runtime stack, e.g. `node24`, `node22`, `java25`, `java21`, `python_3_13`, `python_3_12`, `python_3_11`, `python_3_10` (required) |
 | `--source` | Source directory path |
 | `--build` | Build command |
 | `--platform` | Target platform |
@@ -347,8 +354,8 @@ catalyst appsail:add --name my-api --stack node18
 # Java 17 WAR
 catalyst appsail:add --name my-service --stack java17
 
-# Python 3.9
-catalyst appsail:add --name my-app --stack python_3_9
+# Python 3.13
+catalyst appsail:add --name my-app --stack python_3_13
 
 # With all options
 catalyst appsail:add --name my-api --stack node18 --source ./server --build "npm run build" --platform linux --overwrite-config
@@ -665,7 +672,7 @@ catalyst <command> --help
 Always follow this order when building a Catalyst project:
 
 1. **Login**: `catalyst login`
-2. **Init**: `catalyst init --force --org <org> --project <proj> --non-interactive`
+2. **Init**: `catalyst init` (interactive — select org, project, and features when prompted)
 3. **Create tables**: Set up Data Store tables (via console or IAC)
 4. **Configure permissions**: Set table-level and row-level access
 5. **Seed data**: Import initial data with `catalyst ds:import`
