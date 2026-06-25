@@ -67,6 +67,8 @@ Windows: `%APPDATA%\Claude\claude_desktop_config.json`):
 }
 ```
 
+> **Using Claude Code?** Run `/switch-dc <region>` — it handles everything automatically.
+
 **Step 3 — Authorize:**
 Restart your AI client. It will open a browser window and prompt you to log in to your Zoho account and grant access. This happens once — the token is stored automatically by the client.
 
