@@ -1,3 +1,7 @@
+---
+description: Switch the Catalyst by Zoho MCP server to a specified data center
+argument-hint: <US|EU|IN|AU|CA|SA|JP|UAE>
+---
 Switch the Catalyst by Zoho MCP server to the data center specified in: $ARGUMENTS
 
 Follow these steps exactly:
