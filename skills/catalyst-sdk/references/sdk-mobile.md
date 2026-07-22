@@ -27,7 +27,7 @@ dependencies {
 <string name="url_scheme">zc-YOUR_PROJECT_ID</string>
 ```
 
-Place `AppConfigurationData.plist` (downloaded from console) in `app/src/main/assets/`.
+Place the configuration file downloaded from the console — `app_configuration_development.properties` (or `app_configuration_production.properties` for Production) — in `app/src/main/assets/`. (The `.plist` file is for the iOS SDK, not Android.)
 
 ### Init & Auth
 
@@ -101,7 +101,7 @@ table.deleteRow("12345", object : ZCatalystCallback<Void> { ... })
 ### Setup (CocoaPods)
 
 ```ruby
-pod 'ZCatalyst', :git => 'https://github.com/nicetomeetyou/ZCatalyst.git', :tag => '2.2.2'
+pod 'ZCatalyst', :git => 'https://github.com/zoho/Catalyst-iOS-SDK.git', :tag => '2.2.2'
 ```
 
 **Info.plist:**
@@ -322,5 +322,5 @@ try {
 | Login screen not returning to app (Android) | OAuth redirect URI not registered | Add the Catalyst redirect URI to your Android manifest `<intent-filter>` |
 | `ZCatalystException: Unauthorized` on DataStore | SDK initialized without admin scope in background task | Use admin-scoped init for WorkManager / background jobs |
 | iOS `openURL` not called after login | Missing `application(_:open:options:)` implementation | Implement the URL handler in `AppDelegate` to complete the OAuth callback |
-| Flutter `ZCatalystApp.getInstance()` returns null | `await ZCatalystApp.initializeApp(...)` not awaited before use | Ensure `initializeApp` completes before any SDK call (use `await` in `main()`) |
+| Flutter `ZCatalystApp.getInstance()` returns null | `await ZCatalystApp.init(...)` not awaited before use | Ensure `init` completes before any SDK call (use `await` in `main()`) |
 | Row update silently fails on Android | Row ID passed as `String` instead of `Long` | Cast row ID to `Long` before passing to `updateRow()` |

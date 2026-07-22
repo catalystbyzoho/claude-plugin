@@ -1,5 +1,7 @@
 > **Zoho MCP** lets AI assistants (Claude, GitHub Copilot, Cursor, etc.) manage Catalyst infrastructure
-> by calling `CatalystbyZoho_*` tools directly. No console clicks or REST API calls needed.
+> by invoking `CatalystbyZoho_*` operations through the `ZohoMCP_executeTool` meta-tool. No console
+> clicks or REST API calls needed. (The `CatalystbyZoho_*` names are never callable tools on their
+> own — see "How to Call Tools Correctly" below.)
 
 ---
 
@@ -73,19 +75,16 @@ Windows: `%APPDATA%\Claude\claude_desktop_config.json`):
 Restart your AI client. It will open a browser window and prompt you to log in to your Zoho account and grant access. This happens once — the token is stored automatically by the client.
 
 **Step 4 — Verify:**
-Look for `CatalystbyZoho_*` tools in your client's tool list. Done.
+Look for the `ZohoMCP_*` **meta-tools** in your client's tool list — `ZohoMCP_getSchema`,
+`ZohoMCP_executeTool`, `ZohoMCP_listTools`, `ZohoMCP_getFeatures`. Their presence means MCP is
+connected. (The `CatalystbyZoho_*` operations are *not* listed as tools — they are `tool_name`
+values you pass to `ZohoMCP_executeTool`.) Done.
 
 ---
 
 ## Pre-flight Sequence
 
-Always run these calls before any other MCP operation to set project context:
-
-1. `CatalystbyZoho_List_All_Organizations` → get your org ID
-2. `CatalystbyZoho_List_All_Projects` (with org ID) → get your project ID
-3. `CatalystbyZoho_List_All_Tables` *(DataStore operations only)* → verify access and get table names
-
-If there is more than one org or project, ask the user which one to use before proceeding.
+Before your first MCP tool call, complete the canonical **workspace readiness gate** once per session: `../../catalyst-basics/references/preflight.md`. It establishes org/project (from `.catalystrc` + a single `CatalystbyZoho_Get_Project_By_Id` reconciliation, or the `List_All_Organizations` → `List_All_Projects` fallback when `.catalystrc` is absent) and confirms access with `List_All_Tables` before DataStore work. Once it passes, trust it and operate freely — do not re-run it before every call.
 
 ---
 
@@ -132,18 +131,18 @@ Tools with no required path variables (e.g. `List_All_Organizations`, `List_All_
 
 ## Available Tools
 
-The tools available depend on which Catalyst tools are configured in your Zoho MCP server. Confirmed tool names:
+The operations available depend on which Catalyst tools are configured in your Zoho MCP server. Each is invoked by passing its name as the `tool_name` argument to `ZohoMCP_executeTool` — the names below are those `tool_name` values, not tools that appear in your client's tool list. Confirmed operation names:
 
 | Tool | Description |
 |------|-------------|
 | `CatalystbyZoho_List_All_Organizations` | List all Zoho organizations the account has access to |
 | `CatalystbyZoho_List_All_Projects` | List all Catalyst projects in the organization |
 | `CatalystbyZoho_List_All_Tables` | List all Data Store tables in the project |
-| `CatalystbyZoho_List_Cache_Segments` | List all Cache segments in the project |
+| `CatalystbyZoho_List_All_Segments` | List all Cache segments in the project |
 | `CatalystbyZoho_List_All_Jobpools` | List all Job Scheduling pools in the project |
 | `CatalystbyZoho_Create_Job_Pool` | Create a new Job Scheduling pool |
 
-For the full catalog of available tools, check your AI client's tool list after connecting — all tools shown with the `CatalystbyZoho_` prefix are available to use.
+For the full catalog of available operations, call `ZohoMCP_listTools` (or `ZohoMCP_getFeatures`) after connecting — these enumerate every `CatalystbyZoho_*` `tool_name` the server exposes. Do **not** expect the `CatalystbyZoho_*` names to appear in your AI client's visible tool list; only the `ZohoMCP_*` meta-tools appear there.
 
 ---
 
@@ -164,7 +163,7 @@ When an AI agent needs to create or manage Catalyst infrastructure (tables, cach
 Need to create Catalyst infrastructure?
         │
         ▼
-Are CatalystbyZoho_* tools visible in tool list?
+Are the ZohoMCP_* meta-tools present in tool list?
         │
    YES──┘──NO
    │          │
@@ -190,26 +189,36 @@ tools      (see Setup section above)
 5. Click Create
 ```
 
-✅ **MCP (30 seconds)**
+✅ **MCP (two calls — table, then its columns)**
+
+`Create_Table` takes only `table_name` + `table_scope`; columns are a **separate** `Create_Column` call (a batch array) against the new table's ID. Both go through `ZohoMCP_executeTool` with `projectId` + `Catalyst-org` + `Environment`.
+
 ```javascript
-// One tool call — everything automated
-CatalystbyZoho_Create_Table({
-  table_name: "Todos",
-  columns: [
-    { name: "title", data_type: "text", mandatory: true },
-    { name: "completed", data_type: "boolean", default_value: "false" }
-  ]
-})
+// 1) Create the table (no inline columns)
+ZohoMCP_executeTool({ body: {
+  tool_name: "CatalystbyZoho_Create_Table",
+  arguments: {
+    path_variables: { projectId: "<projectId>" },
+    headers: { "Catalyst-org": <orgId>, "Environment": "Development" },
+    body: { table_name: "Todos", table_scope: "GLOBAL" }
+  }
+}})
+
+// 2) Add columns in one batch, using the table id returned above
+ZohoMCP_executeTool({ body: {
+  tool_name: "CatalystbyZoho_Create_Column",
+  arguments: {
+    path_variables: { projectId: "<projectId>", id: "<tableId>" },
+    headers: { "Catalyst-org": <orgId>, "Environment": "Development" },
+    body: [
+      { column_name: "title", data_type: "text", is_mandatory: "true", audit_consent: "false" },
+      { column_name: "completed", data_type: "boolean", is_mandatory: "false", search_index_enabled: "false", default_value: "false", audit_consent: "false" }
+    ]
+  }
+}})
 ```
 
-### Pre-flight Check for AI Agents
-
-Before instructing a user to open the Catalyst Console for any infrastructure task:
-
-1. Check if `CatalystbyZoho_*` tools are in the available tool list
-2. If YES → use the appropriate `CatalystbyZoho_*` tool directly
-3. If NO → load `references/zoho-mcp.md` and guide the user through MCP setup first
-4. Only after exhausting MCP options → provide manual Console instructions
+See `mcp-datastore.md` for the full column-type field rules.
 
 ---
 
@@ -219,7 +228,7 @@ Before instructing a user to open the Catalyst Console for any infrastructure ta
 
 > "Create a Tasks table with columns: Title (text, required), DueDate (date), Status (text), Priority (integer)"
 
-The AI will call the appropriate `CatalystbyZoho_*` create-table tool with column specifications.
+The AI calls `CatalystbyZoho_Create_Table` (name + scope), then `CatalystbyZoho_Create_Column` with the batch of column specs against the new table ID.
 
 ### Query data
 
@@ -250,7 +259,7 @@ The AI calls `CatalystbyZoho_List_All_Tables` then describes the schema.
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `CatalystbyZoho_*` tools not showing | MCP server not connected or URL wrong | Verify URL in client config; restart client after saving |
+| `ZohoMCP_*` meta-tools not showing | MCP server not connected or URL wrong | Verify URL in client config; restart client after saving. (The `CatalystbyZoho_*` names never appear in the tool list — only the `ZohoMCP_*` meta-tools do.) |
 | `PERMISSION_NEEDED` on table operations | Project context not set | Run `CatalystbyZoho_List_All_Organizations` → `List_All_Projects` first |
 | Operations applying to wrong project | Skipped pre-flight | Always run the org → project → verify sequence before any operation |
 | MCP server shows red/error *(Option B)* | Token expired or URL invalid | Regenerate the authenticated URL at mcp.zoho.com |

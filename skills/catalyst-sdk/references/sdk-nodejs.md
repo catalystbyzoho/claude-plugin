@@ -99,6 +99,7 @@ await table.deleteRows(['123456000000012345', '123456000000012346']);
 ```javascript
 const zcql = catalystApp.zcql();
 
+// NOTE: the ZCQL method name differs per SDK — Node.js: executeZCQLQuery(); Python: execute_query() / execute_olap_query()
 const rows = await zcql.executeZCQLQuery("SELECT * FROM Shipments WHERE Status = 'Active'");
 
 // INSERT/UPDATE/DELETE via ZCQL
@@ -217,32 +218,35 @@ await catalystApp.email().sendMail({
 
 ```javascript
 const nosql = catalystApp.nosql();
-const { NoSQLItem } = require('zcatalyst-sdk-node/lib/no-sql');
+const { NoSQLItem, NoSQLMarshall, NoSQLEnum } = require('zcatalyst-sdk-node/lib/no-sql');
+const { NoSQLOperator } = NoSQLEnum;
 const table = nosql.table('SessionStore');
 
-// Build item with typed builder methods — no item.put(); no plain JSON
+// Build items with the typed builder — no item.put(); no plain JSON
 const item = new NoSQLItem()
   .addString('userId', 'user_001')   // partition key
-  .addNumber('loginTime', Date.now());
+  .addNumber('loginTime', 1700000000000);
 
-// insertItems takes an object { item }, NOT an array
-await table.insertItems({ item });
+await table.insertItems({ item });                    // object { item }, NOT an array
 
-// fetchItem (singular) — keys is a NoSQLItem identifying the record
+// fetchItem — keys is an ARRAY of NoSQLItem key objects
 const fetched = await table.fetchItem({
   keys: [new NoSQLItem().addString('userId', 'user_001')]
 });
 
+// queryTable — key_condition with { attribute, operator, value }; value wrapped via NoSQLMarshall
 const queryResult = await table.queryTable({
-  partitionKey: { name: 'userId', value: 'user_001' },
-  sortKey: { name: 'loginTime', operator: 'GREATERTHAN', value: 1700000000000 },
-  limit: 50, ascending: true
+  key_condition: {
+    attribute: ['userId'],
+    operator: NoSQLOperator.EQUALS,
+    value: NoSQLMarshall.makeString('user_001')
+  },
+  limit: 50
 });
-// Operators: EQUALS, BETWEEN, GREATERTHAN, LESSERTHAN, GREATERTHANOREQUALTO, LESSERTHANOREQUALTO
-
-await table.updateItems([item]);
-await table.deleteItems([{ partitionKey: 'user_001', sortKey: 1700000000001 }]);
+// Comparison operators come from the NoSQLOperator enum (EQUALS, BETWEEN, BEGINS_WITH, and greater/less-than variants)
 ```
+
+> Quick reference only. For the full NoSQL API — `updateItems` (with `update_attributes`), `deleteItems`, the `NoSQLItem` builder cheat-sheet, and the partition/sort-key model — see the canonical `catalyst-nosql` skill → `../../catalyst-nosql/references/nosql-basics.md`.
 
 ---
 

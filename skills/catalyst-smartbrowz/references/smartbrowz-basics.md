@@ -8,7 +8,7 @@ Catalyst SmartBrowz is a cloud-based browser service that enables headless brows
 
 SmartBrowz provides 6 independent components in a unified platform:
 
-1. **Headless** — Connect to remote Chrome/Firefox with Puppeteer, Playwright, or Selenium
+1. **Headless** — Connect to a remote Chrome browser with Puppeteer, Playwright, or Selenium
 2. **Browser Logic** — Serverless functions for browser automation (Java/Node.js)
 3. **PDF & Screenshot** — Generate visual documents from webpages
 4. **Templates** — Design and store templates for dynamic content
@@ -134,14 +134,12 @@ Browser Logic is a **Serverless Function type** for browser automation tasks. Un
 **Via CLI (required for initial creation):**
 
 ```bash
-# Initialize project
-catalyst init
+# Initialize project (non-interactive)
+catalyst init --org <orgId> -p <projectId> -ni
 
-# Create Browser Logic function
-catalyst functions:create
-# Select: Browser Logic
-# Enter function name
-# Select runtime: Java or Node.js
+# Create Browser Logic function (non-interactive) — --type browserlogic
+catalyst functions:add --name <name> --type browserlogic --stack <stack> -ni
+# <stack>: a Node.js (e.g. node20) or Java (e.g. java17) runtime
 
 # Function structure is auto-generated
 ```
@@ -195,7 +193,7 @@ public class BrowserLogicExample implements SeleniumHandler {
 catalyst serve
 
 # Deploy to console
-catalyst deploy --only functions:browser_logic_function_name
+catalyst deploy --only functions:browser_logic_function_name -ni
 ```
 
 **From Console:**
@@ -639,7 +637,7 @@ Alerts persist until you **update the grid configuration**. Resolving the underl
 
    **SDK — manage grid (Node.js):**
    ```javascript
-   const grid = app.SmartBrowz().browserGrid();
+   const grid = app.smartbrowz().browserGrid();
 
    // Get all grids and their details
    const gridList = await grid.getGrid();
@@ -769,7 +767,7 @@ Unified view of all SmartBrowz component usage:
 | Error | Cause | Fix |
 |-------|-------|-----|
 | "Connection refused to CDP endpoint" | Invalid API key or endpoint | Verify endpoint and API key from console, ensure no extra spaces |
-| "Browser Logic function not found" | Function not deployed or incorrect name | Deploy function via CLI: `catalyst deploy` |
+| "Browser Logic function not found" | Function not deployed or incorrect name | Deploy function via CLI: `catalyst deploy -ni` |
 | "PDF generation failed" | Invalid HTML or unsupported CSS | Validate HTML syntax, test in Console Playground first |
 | "Screenshot timeout" | Page load too slow or infinite loop | Increase `timeout` in `navigation_options`, check target URL accessibility |
 | "Template variable not found" | Missing data in template invocation | Ensure all `{{variables}}` in template are provided in `template_data` |

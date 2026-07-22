@@ -99,7 +99,7 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-// Health check endpoint (required)
+// Health check endpoint (path is configurable in Console — see Health Checks & Autoscaling below)
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
@@ -137,6 +137,11 @@ CMD ["node", "app.js"]
 
 ## Deployment
 
+> **Local-first: serve and test before you deploy.** Run `catalyst serve` and exercise the app's
+> routes on Local (calls to managed services proxy to the Development environment), plus the project's
+> test suite, and iterate until it passes. Deploy to Development only after the local pass; promote to
+> Production only after Development is verified. Canonical loop: `../../catalyst-basics/references/project-basics.md` → **Environments**.
+
 ### Understanding the two deploy modes
 
 The key distinction is **whether the app is initialized (linked) in `catalyst.json`**, not whether `app-config.json` exists:
@@ -154,10 +159,10 @@ If the app is already registered in `catalyst.json`, use one of these:
 
 ```bash
 # Deploy the entire project (includes AppSail)
-catalyst deploy
+catalyst deploy -ni
 
 # Deploy only this AppSail service (non-interactive, agent-safe)
-catalyst deploy appsail
+catalyst deploy appsail --name <service-name> -ni
 ```
 
 > ⚠️ **`catalyst deploy appsail` on a linked app is safe and non-interactive** — it deploys using `app-config.json` from the source directory. This is the correct path for linked apps; the "already exists" error only occurs if you run `catalyst appsail:add` again on an app that is already registered.
@@ -165,15 +170,15 @@ catalyst deploy appsail
 > ⚠️ **Always include `--name <service-name>` when running `catalyst deploy appsail`.** If `--name` is omitted, the CLI defaults the service name to `AppSail`, which can cause unexpected behavior if your actual service has a different name.
 
 ```bash
-catalyst deploy --except appsail                    # Deploy everything EXCEPT AppSail
-catalyst deploy appsail --name <service-name>       # Deploy ONLY this AppSail service
-catalyst deploy --only appsail:<service-name>       # Alternative: deploy specific AppSail by name
+catalyst deploy --except appsail -ni                # Deploy everything EXCEPT AppSail
+catalyst deploy appsail --name <service-name> -ni   # Deploy ONLY this AppSail service
+catalyst deploy --only appsail:<service-name> -ni   # Alternative: deploy specific AppSail by name
 ```
 
 ```bash
-# Example: link app first (interactive), then deploy
+# Example: link app first (interactive — human only), then deploy
 catalyst appsail:add                                        # interactive — agent cannot drive this autonomously
-catalyst deploy appsail --name <service-name>               # non-interactive deploy using app-config.json
+catalyst deploy appsail --name <service-name> -ni           # non-interactive deploy using app-config.json
 ```
 
 ### Path B — Non-interactive standalone Docker deploy (agent/CI-safe)
@@ -182,17 +187,16 @@ Run from the project root (directory containing `catalyst.json`). No prior `apps
 
 ```bash
 # Docker Image (from local registry — image must be tagged and built locally)
-catalyst deploy appsail --name <service-name> --source docker://<image>:<tag>
+catalyst deploy appsail --name <service-name> --source docker://<image>:<tag> -ni
 
 # Docker Archive (from a .tar file — generated with: docker save <image> > image.tar)
-catalyst deploy appsail --name <service-name> --source docker-archive://./image.tar
+catalyst deploy appsail --name <service-name> --source docker-archive://./image.tar -ni
 
-# Optional overrides
-catalyst deploy appsail --name <service-name> --source docker://<image>:<tag> \
-# --port sets the AppSail listening port (equivalent to X_ZOHO_CATALYST_LISTEN_PORT).
-# Catalyst verifies the process is bound to this port within 10 seconds — if not, the instance is killed.
-catalyst deploy appsail --name <service-name> --source docker://<image>:<tag> \
-  --command "node server.js" --port 8080
+# Optional override — --port sets the AppSail listening port (equivalent to
+# X_ZOHO_CATALYST_LISTEN_PORT). Catalyst verifies the process is bound to this port
+# within 10 seconds — if not, the instance is killed. (The startup command comes from
+# the Docker image's ENTRYPOINT/CMD; --command is for managed runtimes only — see Path C.)
+catalyst deploy appsail --name <service-name> --source docker://<image>:<tag> --port 8080 -ni
 ```
 
 ### Path C — Non-interactive standalone managed runtime deploy (agent/CI-safe)
@@ -205,7 +209,7 @@ catalyst deploy appsail \
   --name <service-name> \
   --build-path /absolute/path/to/appsail \
   --stack node20 \
-  --command "node app.js"
+  --command "node app.js" -ni
 ```
 
 > ⚠️ **`--build-path` must be an absolute path.** Relative paths are accepted by the CLI (no error) but the deployed app fails to start at runtime with "Execution failed. Please check the startup command or port." This is confirmed by runtime testing.
@@ -214,7 +218,7 @@ catalyst deploy appsail \
 
 > ⚠️ **OCI-only:** Catalyst only accepts Linux AMD64 (x86-64) OCI-compliant images. ARM64 or non-OCI images will be rejected.
 
-> ⚠️ **Prerequisite:** `catalyst.json` must exist in the working directory. Run `catalyst init` first if starting from scratch.
+> ⚠️ **Prerequisite:** `catalyst.json` must exist in the working directory. Run `catalyst init --org <orgId> -p <projectId> -ni` first if starting from scratch.
 
 **Agent boundary — what requires the user:**
 - `catalyst appsail:add` is interactive (menu-driven) and cannot be driven autonomously

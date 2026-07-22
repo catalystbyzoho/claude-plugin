@@ -46,7 +46,7 @@ await segment.delete('user:123');
 
 ### `segment.delete()` does NOT remove the key
 
-`segment.delete(key)` sets `cache_value = null` but the key continues to exist. A subsequent `getValue()` returns HTTP 200 with `cache_value: null` — it does NOT raise an exception.
+`segment.delete(key)` sets `cache_value = null` but the key continues to exist. A subsequent `getValue()` returns `null` (and `get()` returns an object with `cache_value: null`, HTTP 200) — neither raises an exception.
 
 ```javascript
 // WRONG — checking for exception won't work:

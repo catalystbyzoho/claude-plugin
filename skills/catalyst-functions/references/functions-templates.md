@@ -4,25 +4,13 @@ Handler templates for background and scheduled function types. Load this file wh
 
 ## `catalyst-config.json` — `type` Field Values
 
-The `type` field is set by the CLI when a function is created. **Do not change it manually.**
-
-| Function Type | `"type"` value |
-|---------------|----------------|
-| Basic I/O | `"basicio"` |
-| Advanced I/O | `"advancedio"` |
-| Cron | `"cron"` |
-| Job | `"job"` |
-| Event | `"event"` |
-| Integration | `"integration"` |
-| Browser Logic | `"browserlogic"` |
-
-> `"browserlogic"` for Browser Logic — NOT `"browselogic"`. Basic I/O is `"basicio"` — NOT `"basiccron"`.
+The `type` field is set by the CLI when a function is created. **Do not change it manually.** For the full `type`-value table (all 7 function types) and the `"browserlogic"`/`"basicio"` spelling gotchas, see `functions-basics.md`.
 
 ---
 
 ## Event Function Template
 
-Triggered by Catalyst Signals or Event Listeners.
+Triggered by Catalyst **Signals**. (The standalone *Event Listeners* service is deprecated — use Signals for new projects.)
 
 ```javascript
 'use strict';
@@ -44,6 +32,8 @@ module.exports = (event, context) => {
 ---
 
 ## Cron Function Template
+
+> **Legacy type.** The Cron function type still works, but for new projects prefer the **Job function type with Job Scheduling** (see below) — the standalone Cron scheduler is deprecated. This template is retained for existing Cron functions.
 
 Triggered on a schedule. Always call `closeWithSuccess()` or `closeWithFailure()` — never leave the context open.
 
@@ -148,7 +138,7 @@ module.exports = (event, context) => {
 };
 ```
 
-> Integration functions are NOT available in EU, AU, IN, JP, SA, or CA data centers.
+> Integration functions are NOT available in EU, AU, IN, JP, SA, CA, or UAE data centers.
 
 ---
 
@@ -216,6 +206,60 @@ Design **Event** and **Job** handlers to be **idempotent** (safe to run multiple
 
 ---
 
+## SDK Auth Scope in Job / Cron / Event Functions
+
+### Default Behavior (Official)
+
+`catalyst.initialize(context)` — used in Job, Cron, and Event function boilerplates — **defaults to Admin scope**. From the official docs:
+
+> "It is not mandatory to initialize with a scope. By default, a project that is initialized will have Admin privileges."
+
+Explicitly passing `{ scope: 'admin' }` is equivalent to the default. It is not required but is acceptable for clarity.
+
+**Scope only applies to: DataStore, FileStore, and ZCQL.** Other services (Cache, Circuits, Zia, Push Notifications) always require admin regardless of the scope flag.
+
+### SDK Operation → Required Scope (Official Table)
+
+| DataStore Operation | Scope Required |
+|---------------------|----------------|
+| Get rows, Update rows, Delete rows, ZCQL query | User **or** Admin |
+| Bulk Read, Bulk Write, Bulk Delete | **Admin only** |
+
+| Other Component | Scope Required |
+|-----------------|----------------|
+| Cache | Admin only |
+| Circuits | Admin only |
+| Zia Services | Admin only |
+| File Store (upload, download, delete) | User or Admin |
+| File Store (other operations) | Admin only |
+| Email, Search | User or Admin |
+| Push Notifications | Admin only |
+
+### When to Use User Scope
+
+User scope is only relevant in **HTTP functions** (Basic I/O / Advanced I/O) where a real user token is present in the request:
+
+```javascript
+// HTTP function — user scope applies the caller's Data Store permissions
+const userApp = catalyst.initialize(req, { scope: 'user' });
+
+// HTTP function — admin scope bypasses per-user table permissions
+const adminApp = catalyst.initialize(req, { scope: 'admin' });
+```
+
+In Job/Cron/Event functions there is no user in the request — the first argument is always `context`, not `req`. Passing `{ scope: 'user' }` in a non-HTTP function will fail because there is no user token to resolve.
+
+### Bulk Read for Large DataStore Reads
+
+When a Job function needs to read more than 300 rows, ZCQL pagination inside a 15-minute limit is risky for very large tables. Use the Bulk Read REST API instead:
+
+- Requires Admin scope (confirmed in SDK scope table)
+- Triggers an async job; use callback URL or poll the Check Bulk Read Status API
+- Returns a CSV download URL on completion
+- Can read up to 200,000 records per page
+
+---
+
 ## Common Errors
 
 | Error | Cause | Fix |
@@ -233,8 +277,8 @@ Design **Event** and **Job** handlers to be **idempotent** (safe to run multiple
 | `is_deployed: false` in API responses | All functions return this value regardless of live status | Verify deployment status in the Console |
 | Need to read >300 rows in a Job function | ZCQL cap is 300 rows; paginating inside 15-min limit is risky | Use the Bulk Read REST API for large-volume reads |
 | `INVALID_INPUT: job_name must contain only alphanumeric and underscore` | `job_name` contains hyphens or spaces | Use underscores only — `doc_audit_run_1` not `doc-audit-run-1` |
-| `busboy` never emits `finish` event | Pipe not set up before response end | Ensure `req.pipe(bb)` and `finish` listener registered before piping |
-| File upload silently truncated | Function memory limit exceeded mid-stream | Use pre-signed Stratus URL for files > 50 MB |
-| Chained function call times out | Inner function cold start exceeds outer timeout | Use `invokeType: 'async'` for fire-and-forget; Job functions for long pipelines |
-| `Cannot read properties of undefined (reading 'files')` | `express-fileupload` not added as middleware before route | Add `app.use(fileUpload())` before route definitions |
 | Timeout math fails in Cron/Job | `context.getMaxExecutionTimeMs()` returns STRING | Use `parseInt(context.getMaxExecutionTimeMs())` for calculations |
+| Python Job: calling `dir(context)` before `initialize()` to "fix" SDK failures | **FALSE.** `dir(context)` has no effect on SDK init — tested on Python 3.13 runtime. Both paths produce identical DataStore/ZCQL access. | If Python Job SDK calls fail, check scope, table permissions, and column names — not `dir()` ordering |
+| `table.updateRow()` hangs in Job functions with admin scope | **FALSE.** `table.updateRow()` works reliably in Node.js Job functions with `{ scope: 'admin' }` — tested, completes in ~425ms with no hang | If updates hang, check that ROWID is present in the payload and that admin scope is used; user-scope in a Job function (no user token) will fail |
+
+> File-upload, streaming, and function-chaining errors live with their patterns in `functions-advanced.md`.

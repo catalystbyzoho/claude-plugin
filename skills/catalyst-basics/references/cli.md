@@ -39,7 +39,7 @@ These flags can be used with any command:
 | `-p`, `--project` | Specify the project ID or name to target |
 | `--org` | Specify the organization ID |
 | `--token` | Use a Catalyst auth token instead of interactive login |
-| `--dc` | Data center region: `us`, `eu`, `in`, `au`, `jp`, `sa`, `ca` |
+| `--dc` | Data center region: `us`, `eu`, `in`, `au`, `ca`, `sa`, `jp`, `uae` |
 | `--verbose` | Enable verbose/debug output for troubleshooting |
 | `-h`, `--help` | Show help for a command |
 | `-ni`, `--non-interactive` | Skip all interactive prompts — requires CLI v1.27.0+. Equivalent env var: `ZCATALYST_NON_INTERACTIVE=1` |
@@ -115,7 +115,9 @@ catalyst project:list
 Set the active project context for subsequent commands.
 
 ```bash
-catalyst project:use
+# ✅ Non-interactive — pass the project so the CLI never opens a selector
+catalyst project:use <name-or-id> -ni
+catalyst project:use <name-or-id> --org <org-id> -ni   # target a project in another org
 ```
 
 ### `catalyst project:reset`
@@ -228,7 +230,7 @@ Add an AppSail service. **ALWAYS use flags to avoid interactive prompts.**
 ```bash
 # Catalyst-managed runtime (source is a local directory)
 catalyst appsail:add --name <name> --source <dir> --stack <stack>
-catalyst appsail:add --name <name> --source <dir> --stack java17 --platform war --overwrite-config
+catalyst appsail:add --name <name> --source <dir> --stack java21 --platform war --overwrite-config
 
 # Custom (Docker) runtime (source is a Docker image or archive)
 catalyst appsail:add --name <name> --source <image-or-archive> --port <port>
@@ -297,12 +299,7 @@ catalyst functions:delete <function_name> --remote     # ⛔ BLOCKED in NI mode 
 
 ## Client
 
-### `catalyst client:setup`
-Initialize the client directory for the project.
-
-```bash
-catalyst client:setup
-```
+> For `catalyst client:setup` (including non-interactive `-ni` usage and all flags), see the **Initialization & Setup** section above.
 
 ### `catalyst client:delete`
 Delete the client component.
@@ -405,17 +402,17 @@ AppSail is for deploying full application servers (Express, Spring Boot, Flask, 
 **ALWAYS use flags to avoid interactive prompts.**
 
 ```bash
-# Node.js 18
-catalyst appsail:add --name my-api --source ./server --stack node18
+# Node.js 22
+catalyst appsail:add --name my-api --source ./server --stack node22
 
-# Java 17 WAR
-catalyst appsail:add --name my-service --source ./server --stack java17
+# Java 21 WAR
+catalyst appsail:add --name my-service --source ./server --stack java21
 
 # Python 3.13
 catalyst appsail:add --name my-app --source ./app --stack python_3_13
 
 # With all options
-catalyst appsail:add --name my-api --source ./server --stack node18 --build ./build --overwrite-config
+catalyst appsail:add --name my-api --source ./server --stack node22 --build ./build --overwrite-config
 ```
 
 ---
@@ -589,10 +586,19 @@ catalyst codelib:install
 
 ## Local Development
 
+> **Local is the first of Catalyst's three environments (Local → Development → Production).** `catalyst serve` runs your Functions, AppSail, and Slate code on your machine, while calls to managed backend features (Data Store, Stratus, NoSQL, Cache, Authentication, etc.) are **proxied to the Development environment** — Local has no standalone data plane, so it is coupled to Development. **Serve and test locally before every deploy.** The canonical environment model and the local-first loop live in `project-basics.md` → **Environments**.
+
 ### `catalyst serve`
-Start the local development server. Serves functions, client, and AppSail locally.
+Start the local development server. Serves functions, client, and AppSail locally; managed-service calls proxy to the Development environment.
 
 **IMPORTANT: The `catalyst serve` port is dynamic. Never hardcode the port. Never use Vite's dev server directly -- always use `catalyst serve`.**
+
+**Local test targets after `catalyst serve` starts** (use the dynamic port the CLI prints):
+- **Functions (HTTP):** `curl http://localhost:<port>/server/<function_name>/execute`
+- **Event/Cron/Job/Integration functions:** `catalyst functions:execute <name> --input '{…}'` (no HTTP trigger)
+- **AppSail:** hit the local server's routes at the printed URL
+- **Slate:** open the printed local URL in a browser and click through
+- Then run any project test suite (`npm test`, `pytest`, …). Only deploy once local tests pass.
 
 ```bash
 catalyst serve                          # Start with defaults
@@ -626,16 +632,17 @@ Deploy the project to Catalyst cloud.
 > ⚠️ **`catalyst deploy` silently overwrites environment variables** — only values defined in `catalyst-config.json` survive a deploy. Any env vars set through the Console are wiped on every deploy. Keep all env vars in `catalyst-config.json`, not the Console.
 
 ```bash
-catalyst deploy                         # Deploy everything
-catalyst deploy --only functions        # Deploy only functions
-catalyst deploy --only client           # Deploy only client
-catalyst deploy --except appsail        # Deploy everything except AppSail
+catalyst deploy -ni                        # Deploy everything
+catalyst deploy --only functions -ni       # Deploy only functions
+catalyst deploy --only client -ni          # Deploy only client
+catalyst deploy --except appsail -ni       # Deploy everything except AppSail
 ```
 
 #### AppSail Deploy Options
 
 ```bash
-catalyst deploy appsail
+# ✅ Non-interactive — pass --name/--source flags so the CLI never prompts
+catalyst deploy appsail --name <service-name> -ni
 ```
 
 #### Slate Deploy Options
@@ -725,16 +732,16 @@ catalyst <command> --help
 
 | Issue | Diagnosis | Solution |
 |-------|-----------|---------|
-| Login fails | Auth token expired or browser blocked | Run `catalyst login --force` or use `--no-localhost` for headless |
-| Wrong project targeted | Stale `.catalystrc` or context | Run `catalyst whoami`, then `catalyst project:use` or `catalyst init` |
-| Wrong data center | Mismatched `--dc` flag | Re-login with correct `--dc` (us/eu/in/au/jp/sa/ca) |
+| Login fails | Auth token expired or browser blocked | Run `catalyst login --dc <dc> --force -ni`, or add `--no-localhost` for headless |
+| Wrong project targeted | Stale `.catalystrc` or context | Run `catalyst whoami`, then `catalyst project:use <name-or-id> -ni` or `catalyst init --org <orgId> -p <projectId> -ni` |
+| Wrong data center | Mismatched `--dc` flag | Re-login with correct `--dc` (us/eu/in/au/ca/sa/jp/uae) |
 | Deploy fails | Missing config, build errors | Check `catalyst.json`, run `catalyst deploy --verbose` |
 | `Deploy fails: Invalid input value for name — Cannot have different name than <project-name>` | Client `package.json` `name` field does not match the Catalyst project name | Set `"name"` in `client/<app>/package.json` to exactly match the Catalyst project name (e.g. `"name": "bandwidth-cost"`) |
 | `client:delete --local` still prompts despite `-ni` | Known CLI edge case — confirmation prompt not suppressed in some versions | Manually remove the client folder name from `catalyst.json` → `client.targets` array and delete the local directory |
 | Env vars missing after deploy | `catalyst deploy` overwrites env vars with `catalyst-config.json` values — Console-set vars are lost | Move all env vars into `catalyst-config.json` before deploying |
 | Functions not found | Missing `catalyst-config.json` or wrong directory structure | Verify `functions/<name>/catalyst-config.json` exists |
 | Port conflicts | Another process using the port | Stop other servers; `catalyst serve` assigns ports dynamically |
-| Token expired | Stale auth token | Run `catalyst token:generate` or `catalyst login --force` |
+| Token expired | Stale auth token | Run `catalyst token:generate` or `catalyst login --dc <dc> --force -ni` |
 | IAC status stuck | Long-running import/export | Run `catalyst iac:status` to check progress |
 | DS import fails | Malformed CSV or schema mismatch | Verify CSV format matches table schema; run `catalyst ds:status` |
 
@@ -747,17 +754,19 @@ catalyst <command> --help
 
 ## Resource-First Development Order
 
-Always follow this order when building a Catalyst project:
+Always follow this order when building a Catalyst project. Steps 8–9 are the **local-first gate** — never skip them for freshly written or changed serve-able code:
 
-1. **Login**: `catalyst login`
+1. **Login**: `catalyst login --dc <dc> -ni` (browser OAuth still needs the user once)
 2. **Init**: `catalyst init --org <orgId> -p <projectId> -ni` (non-interactive; use MCP tools to get org/project IDs)
 3. **Create tables**: Set up Data Store tables (via console or IAC)
 4. **Configure permissions**: Set table-level and row-level access
 5. **Seed data**: Import initial data with `catalyst ds:import`
-6. **Set up compute**: Add functions (`catalyst functions:add --name <n> --type aio --stack node20 -ni`), AppSail (`appsail:add --name <n> --source <dir> --stack node20`), or Slate (`slate:create --name <n> --framework react-vite -ni`)
+6. **Set up compute**: Add functions (`catalyst functions:add --name <n> --type aio --stack node22 -ni`), AppSail (`appsail:add --name <n> --source <dir> --stack node22`), or Slate (`slate:create --name <n> --framework react-vite -ni`)
 7. **Write code**: Implement business logic using the Catalyst SDK
-8. **Serve locally**: `catalyst serve` (port is dynamic, never hardcode)
-9. **Deploy**: `catalyst deploy`
+8. **Serve locally**: `catalyst serve` (port is dynamic, never hardcode) — managed-service calls proxy to Development
+9. **Test locally**: exercise the component (curl the local function URL, hit AppSail routes, click through the Slate UI) and run the project's test suite; iterate here until it works — do NOT deploy untested code
+10. **Deploy to Development**: `catalyst deploy -ni` (only after local tests pass)
+11. **Verify in Development**, then **promote to Production** (`catalyst deploy --production -ni`) only once Development is verified — Production changes are migrated up, never authored directly
 
 ---
 

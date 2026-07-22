@@ -240,7 +240,7 @@ HTTPS endpoints for external systems.
 
 **OAuth with Connections:**
 If your webhook requires OAuth tokens:
-1. Create a Connection in Console → Serverless → Connections
+1. Create a Connection in Console → Connections
 2. Select the connection in webhook authorization settings
 3. Signals automatically manages token refresh
 
@@ -316,7 +316,7 @@ Four subtypes:
 | **By Interval** | Deliver at regular intervals | Min: 2 hours, Max: 12 hours |
 | **By Schedule** | Deliver daily at a configured time | Configurable timezone |
 
-> If batch conditions are not met within the 24-hour TTL, events are dispatched via **One-Time Dispatch** (a fallback that clears pending batch events at TTL end — no retries apply).
+> If batch conditions are not met within the 24-hour TTL, pending batch events are flushed once at TTL end (a fallback that clears them — no retries apply).
 
 **Use when:** bulk processing is more efficient (e.g., batch insert to database hourly instead of per-event).
 

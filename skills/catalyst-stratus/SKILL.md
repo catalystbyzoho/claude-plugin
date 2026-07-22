@@ -2,7 +2,7 @@
 name: catalyst-stratus
 description: "Catalyst Stratus — object storage service with upload/download, signed URLs, and multipart upload support. Stratus uses its own SDK-based APIs (not S3-API-compatible). Migrate from AWS S3 or GCS using the Stratus Migration Tool. Trigger on 'Stratus', 'object storage', 'upload file', 'signed URL', 'putObject', 'getObject', or 'bucket'."
 metadata:
-  version: "2.1.2"
+  version: "2.1.3"
 ---
 
 ## How It Works

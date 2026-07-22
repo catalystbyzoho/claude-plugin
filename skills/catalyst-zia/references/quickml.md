@@ -65,11 +65,15 @@ Authorization: Zoho-oauthtoken {token}
 
 ## Pricing
 
+> Canonical pricing lives in `catalyst-pricing/references/pricing-basics.md`. QuickML is billed on tiered inference (per API call) plus LLM token usage — there are no separate training-compute or model-storage line items.
+
 | Resource | Free Tier | Cost |
 |----------|-----------|------|
-| Training compute | 1 model/month | $0.10/model/hour |
-| Predictions | 500/month | $0.001/prediction |
-| Model storage | 1 model active | $5/model/month |
+| Model Inference (0–25K calls) | 500 API calls/month | $0.0025 per API call |
+| Model Inference (25K–100K calls) | — | $0.002 per API call |
+| Model Inference (>100K calls) | — | $0.001 per API call |
+| LLM Input Tokens | — | $0.2 per million |
+| LLM Output Tokens | — | $0.4 per million |
 
 ## Common Errors
 

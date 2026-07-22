@@ -24,7 +24,7 @@ Parse `multipart/form-data` file uploads using `busboy`. Install: `npm install b
 const Busboy = require('busboy');
 const catalyst = require('zcatalyst-sdk-node');
 
-module.exports = async (catalystApp, context, req, res) => {
+module.exports = async (req, res) => {
   const busboy = Busboy({ headers: req.headers });
   const chunks = [];
   let fileName = '';
@@ -78,7 +78,7 @@ module.exports = async (catalystApp, context, req, res) => {
 
 ```javascript
 // Express template
-module.exports = async (catalystApp, context, req, res) => {
+module.exports = async (req, res) => {
   const key = req.query.file;
   if (!key) return res.status(400).json({ error: 'file param required' });
 
@@ -88,7 +88,7 @@ module.exports = async (catalystApp, context, req, res) => {
   const head = await bucket.headObject(key, { throwErr: false });
   if (!head) return res.status(404).json({ error: 'File not found' });
 
-  res.setHeader('Content-Type', head.content_type || 'application/octet-stream');
+  res.setHeader('Content-Type', 'application/octet-stream');
   res.setHeader('Content-Disposition', `attachment; filename="${key.split('/').pop()}"`);
 
   const stream = await bucket.getObject(key);
@@ -104,7 +104,7 @@ Standard error response pattern for Advanced I/O functions:
 
 ```javascript
 // Express template
-module.exports = async (catalystApp, context, req, res) => {
+module.exports = async (req, res) => {
   try {
     // ... your logic
     const result = await someOperation();
@@ -155,40 +155,28 @@ app.use((req, res, next) => {
 
 ---
 
-## Testing Functions Locally (Mock Pattern)
+## Testing Functions Locally (local-first)
 
-Mock `http.ServerResponse` for unit testing Basic I/O functions:
+**Always serve and test on Local before deploying to Development.** `catalyst serve` runs the
+function on your machine; SDK calls to managed services (Data Store, Stratus, Cache, …) proxy to the
+**Development** environment, so you test against real remote data without deploying.
 
-```javascript
-// test/myFunction.test.js
-const handler = require('../functions/my_function/index.js');
-
-async function runTest() {
-  // Mock context (getArgument() lives on context, not basicIO)
-  const context = {
-    closeWithSuccess: () => console.log('SUCCESS'),
-    closeWithFailure: (msg) => console.error('FAILURE:', msg),
-    getArgument: () => JSON.stringify({ userId: '12345', action: 'test' })
-  };
-
-  // Mock basicIO (write() — not setOutput())
-  const basicIO = {
-    write: (result) => console.log('OUTPUT:', result)
-  };
-
-  await handler(context, basicIO);
-}
-
-runTest().catch(console.error);
-```
-
-For Advanced I/O (Express template), test against the actual local dev server:
+For Advanced I/O (Express template), test against the actual local dev server (the serve port is
+**dynamic** — use the URL the CLI prints, never a hardcoded `3000`):
 ```bash
 catalyst serve
-curl -X POST http://localhost:3000/server/my_function/execute \
+curl -X POST http://localhost:<port>/server/my_function/execute \
   -H "Content-Type: application/json" \
   -d '{"key": "value"}'
 ```
+
+For Event/Cron/Job/Integration functions (no HTTP trigger), invoke them directly:
+```bash
+catalyst functions:execute my_function --input '{"key": "value"}'
+```
+
+Iterate locally until it passes, then `catalyst deploy --only functions:<name> -ni`. For unit tests
+without a running server, mock `http.ServerResponse` and call the handler directly.
 
 ---
 
@@ -217,7 +205,7 @@ module.exports = { getUserById };
 // functions/my_function/index.js
 const { getUserById } = require('../utils/dataHelper');
 
-module.exports = async (catalystApp, context, req, res) => {
+module.exports = async (req, res) => {
   const user = await getUserById(catalystApp, req.params.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json({ user });
@@ -262,226 +250,6 @@ For large uploads, consider using pre-signed Stratus URLs for direct browser →
 | `busboy` never emits `finish` event | Pipe not set up before response end | Ensure `req.pipe(bb)` and `finish` listener registered before piping |
 | File upload silently truncated | Function memory limit exceeded mid-stream | Use pre-signed Stratus URL for files > 50 MB |
 | Chained function call times out | Inner function cold start exceeds outer timeout | Use `invokeType: 'async'` for fire-and-forget; Job functions for long pipelines |
-| `Cannot read properties of undefined (reading 'files')` | `express-fileupload` not added as middleware before route | Add `app.use(fileUpload())` before route definitions |
+| `Cannot read properties of undefined (reading 'files')` | Reading `req.files` — that is an `express-fileupload`/Express API, not available with `busboy` | Collect uploads inside the `busboy.on('file', ...)` handler and read them only after the `finish` event |
 
-```javascript
-'use strict';
-const catalyst = require('zcatalyst-sdk-node');
-
-module.exports = (event, context) => {
-  try {
-    const catalystApp = catalyst.initialize(context);
-    const eventData = JSON.parse(event.getArgument());
-    console.log('Event received:', eventData);
-    context.close();
-  } catch (error) {
-    console.error('Event processing error:', error);
-    context.close();
-  }
-};
-```
-
----
-
-## Cron Function Template
-
-```javascript
-'use strict';
-const catalyst = require('zcatalyst-sdk-node');
-
-module.exports = async (cronDetails, context) => {
-  try {
-    const catalystApp = catalyst.initialize(context);
-    context.closeWithSuccess();
-  } catch (error) {
-    context.closeWithFailure();
-  }
-};
-```
-
----
-
-## Job Function Template
-
-```javascript
-'use strict';
-const catalyst = require('zcatalyst-sdk-node');
-
-module.exports = async (jobData, context) => {
-  try {
-    // catalyst.initialize(context) defaults to Admin scope in non-HTTP functions.
-    // Passing { scope: 'admin' } is explicit but equivalent to the default.
-    const catalystApp = catalyst.initialize(context, { scope: 'admin' });
-    const jobDetails = jobData.getAllJobParams();
-    const maxMs = context.getMaxExecutionTimeMs(); // 15 minutes
-
-    const zcql = catalystApp.zcql();
-    const rows = await zcql.executeZCQLQuery('SELECT * FROM MyTable LIMIT 0, 300');
-
-    context.closeWithSuccess();
-  } catch (error) {
-    context.closeWithFailure();
-  }
-};
-```
-
----
-
-## Integration Function Template
-
-```javascript
-'use strict';
-const catalyst = require('zcatalyst-sdk-node');
-
-module.exports = (event, context) => {
-  try {
-    const catalystApp = catalyst.initialize(context);
-    const integrationData = JSON.parse(event.getArgument());
-    context.close();
-  } catch (error) {
-    context.close();
-  }
-};
-```
-
-> Integration functions are NOT available in EU, AU, IN, JP, SA, or CA data centers.
-
----
-
-## SDK Component Reference
-
-```bash
-npm install zcatalyst-sdk-node
-```
-
-```javascript
-const dataStore = catalystApp.datastore();
-const table = dataStore.table('TableName');
-
-const inserted = await table.insertRow({ ColumnName: value });
-const insertedRows = await table.insertRows([{ ColumnName: value1 }, { ColumnName: value2 }]);
-const updated = await table.updateRow({ ROWID: rowId, ColumnName: value });
-await table.deleteRow(rowId);
-
-const row = result.TableName; // unwrap ZCQL table wrapper, e.g. result.Orders
-
-const zcql = catalystApp.zcql();
-const cache = catalystApp.cache();
-const stratus = catalystApp.stratus();
-const email = catalystApp.email();
-const userManagement = catalystApp.userManagement();
-const pushNotification = catalystApp.pushNotification();
-const search = catalystApp.search();
-const nosql = catalystApp.nosql();
-const connection = catalystApp.connection();
-```
-
-> Data Store tables must exist before SDK operations target them. Functions cannot create tables programmatically — use Zoho MCP for table creation and schema updates.
-
----
-
-## Retry Behavior
-
-| Function Type | Auto-retry on failure? |
-|---------------|----------------------|
-| Basic I/O | No |
-| Advanced I/O | No |
-| Event | Yes |
-| Cron | Yes |
-| Job | Yes |
-| Integration | No |
-| Browser Logic | No |
-
-Design background function handlers to be **idempotent** (safe to run multiple times).
-
----
-
-## SDK Auth Scope in Job / Cron / Event Functions
-
-### Default Behavior (Official)
-
-`catalyst.initialize(context)` — used in Job, Cron, and Event function boilerplates — **defaults to Admin scope**. From the official docs:
-
-> "It is not mandatory to initialize with a scope. By default, a project that is initialized will have Admin privileges."
-
-Explicitly passing `{ scope: 'admin' }` is equivalent to the default. It is not required but is acceptable for clarity.
-
-**Scope only applies to: DataStore, FileStore, and ZCQL.** Other services (Cache, Circuits, Zia, Push Notifications) always require admin regardless of the scope flag.
-
-### SDK Operation → Required Scope (Official Table)
-
-| DataStore Operation | Scope Required |
-|---------------------|----------------|
-| Get rows, Update rows, Delete rows, ZCQL query | User **or** Admin |
-| Bulk Read, Bulk Write, Bulk Delete | **Admin only** |
-
-| Other Component | Scope Required |
-|-----------------|----------------|
-| Cache | Admin only |
-| Circuits | Admin only |
-| Zia Services | Admin only |
-| File Store (upload, download, delete) | User or Admin |
-| File Store (other operations) | Admin only |
-| Email, Search | User or Admin |
-| Push Notifications | Admin only |
-
-### When to Use User Scope
-
-User scope is only relevant in **HTTP functions** (Basic I/O / Advanced I/O) where a real user token is present in the request:
-
-```javascript
-// HTTP function — user scope applies the caller's Data Store permissions
-const userApp = catalyst.initialize(req, { scope: 'user' });
-
-// HTTP function — admin scope bypasses per-user table permissions
-const adminApp = catalyst.initialize(req, { scope: 'admin' });
-```
-
-In Job/Cron/Event functions there is no user in the request — the first argument is always `context`, not `req`. Passing `{ scope: 'user' }` in a non-HTTP function will fail because there is no user token to resolve.
-
-### Bulk Read for Large DataStore Reads
-
-When a Job function needs to read more than 300 rows, ZCQL pagination inside a 15-minute limit is risky for very large tables. Use the Bulk Read REST API instead:
-
-- Requires Admin scope (confirmed in SDK scope table)
-- Triggers an async job; use callback URL or poll the Check Bulk Read Status API
-- Returns a CSV download URL on completion
-- Can read up to 200,000 records per page
-
----
-
-
-
-| Runtime | Cold start | Warm invocation |
-|---------|-----------|-----------------|
-| Node.js | 500ms–2s | 50–200ms |
-| Java | 2–8s | 50–200ms |
-| Python | 500ms–2s | 50–200ms |
-
-**Mitigation:** Keep packages small, avoid heavy initialization outside the handler, use Job Scheduling to ping critical functions warm.
-
----
-
-## Common Errors
-
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `res.status()` / `res.json()` in node20 | Raw-http template — no Express methods | Use `res.writeHead()` + `res.end()` |
-| `req.body` undefined | Raw-http template — no body parser | Manually parse with `getBody()` helper |
-| `req.query` undefined | Raw-http template — no query parser | Use `new URL(req.url, ...).searchParams` |
-| `basicIO.write()` called twice | Can only be called once per execution | Call `basicIO.write()` exactly once |
-| Admin-scope for `getCurrentUser()` | Admin scope has no user token | Use user-scope: `catalyst.initialize(req)` |
-| `req.headers['authorization']` undefined | Gateway strips it before function receives it | Use `catalyst.initialize(req)` to identify the user |
-| Using `cors()` middleware with Slate | Gateway owns CORS for production origins | Only set CORS headers for `localhost` |
-| `new Date(row.CREATEDTIME)` wrong timezone | Stored timestamp lacks timezone offset | Append timezone offset before parsing |
-| Inserting emoji into Data Store | Unsupported character in column type | Store a string key instead |
-| Not paginating ZCQL | Max 300 rows per query | Use `LIMIT offset, count` |
-| `is_deployed: false` in API responses | All functions return this value regardless of live status | Verify deployment status in the Console |
-| Need to read >300 rows in a Job function | ZCQL cap is 300 rows; paginating inside 15-min limit is risky | Use the Bulk Read REST API for large-volume reads |
-| `busboy` never emits `finish` event | Pipe not set up before response end or `req` not passed correctly | Ensure `req.pipe(bb)` and `finish` listener registered before piping |
-| File upload silently truncated | Function memory limit exceeded mid-stream | Use pre-signed Stratus URL for files > 50 MB |
-| Chained function call times out | Inner function cold start adds latency beyond outer timeout | Use `invokeType: 'async'` for fire-and-forget; Job functions for long pipelines |
-| `Cannot read properties of undefined (reading 'files')` | `express-fileupload` not added as middleware before route | Add `app.use(fileUpload())` before route definitions |
-| Python Job: calling `dir(context)` before `initialize()` to "fix" SDK failures | **FALSE.** `dir(context)` has no effect on SDK init — tested on Python 3.13 runtime. Both paths produce identical DataStore/ZCQL access. | If Python Job SDK calls fail, check scope, table permissions, and column names — not `dir()` ordering |
-| `table.updateRow()` hangs in Job functions with admin scope | **FALSE.** `table.updateRow()` works reliably in Node.js Job functions with `{ scope: 'admin' }` — tested, completes in ~425ms with no hang | If updates hang, check that ROWID is present in the payload and that admin scope is used; user-scope in a Job function (no user token) will fail |
-| Immediate jobs (`job.submitJob()`) have a shorter timeout than scheduled jobs | **FALSE.** Immediate jobs have the same **15-minute timeout** as scheduled Job functions — runtime-confirmed (130s sleep completed successfully) | No special handling needed for immediate vs scheduled jobs |
+> For Event, Cron, Job, and Integration templates, the SDK component reference, retry behavior, cold starts, background-function auth scope, and the full common errors table, see `functions-templates.md`.

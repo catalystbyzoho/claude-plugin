@@ -13,7 +13,7 @@
 <!-- Dependency -->
 <dependency>
   <groupId>com.zc</groupId>
-  <artifactId>zcatalyst-sdk</artifactId>
+  <artifactId>zcatalyst-sdk-java</artifactId>
   <version>1.15.0</version>
 </dependency>
 ```
@@ -208,7 +208,7 @@ APM is available for Java functions (and Node.js). Python is NOT supported.
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `NullPointerException` on `ZCatalystApp.getInstance()` | SDK not initialized before use | Call `ZCatalystApp.initializeApp(context)` in `Application.onCreate()` before any SDK call |
-| `UnauthorizedException` in Job/Cron function | SDK initialized without admin scope | Use `ZCatalystApp.initializeApp(context, ZCatalystApp.RequestScope.ADMIN)` for background functions |
+| `NullPointerException` / uninitialized project | SDK not initialized before use | Call `ZCProject.initProject()` before any SDK call |
+| `UnauthorizedException` in Job/Cron function | SDK initialized without admin scope | Use `ZCProject.initProject("admin", ZCUserScope.ADMIN)` for background functions |
 | `ClassNotFoundException` for Catalyst classes | Dependency not included in `pom.xml` / `build.gradle` | Add `zcatalyst-sdk-java` dependency; ensure JAR is in the function's `lib/` directory for deployed functions |
 | DataStore query returns empty result set | Table name or column name case mismatch | Table and column names in ZCQL are case-sensitive; verify in Console → Data Store |

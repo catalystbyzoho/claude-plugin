@@ -39,9 +39,9 @@ await table.insertItems({
 });
 
 // --- FETCH by key ---
-// fetchItem({ keys }) — keys can be a single NoSQLItem or an array for batch fetch
+// fetchItem({ keys }) — keys is an array of NoSQLItem key objects (one per item to fetch)
 const result = await table.fetchItem({
-  keys: new NoSQLItem().addString('userId', 'u123')
+  keys: [new NoSQLItem().addString('userId', 'u123')]
 });
 // result.toJSON() → INoSQLResponse with result.create/get/update/delete arrays
 

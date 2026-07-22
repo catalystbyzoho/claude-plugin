@@ -170,12 +170,11 @@ JOINs are subject to the same 300-row result limit.
 ## Column Types
 
 - `varchar` — requires `max_length` (e.g., 255)
-- `text` — large text, auto max 10,000 chars
-- `int`, `bigint`, `double`, `decimal`
+- `text` — large text, auto max 10,000 chars (use this for any large/multi-line text)
+- `int`, `bigint`, `double`
 - `boolean`, `date`, `datetime`
 - `foreign key` — requires `parent_table`, `parent_column`, `constraint_type`
 - `encrypted text` — for sensitive data; `search_index_enabled` NOT allowed
-- `text area` — for large text
 
 ### Boolean Columns — Critical Behavior
 
@@ -240,7 +239,7 @@ const todos = data.map(row => convertBooleanFields(row, ['completed', 'isActive'
 By default, the App User role has **Read-only** access. Insert, Update, Delete operations return `"No privileges to perform this action"`.
 
 **Fix Option 1 (console):**
-Console → Data Store → {Table} → Permissions → App User → check Select, Insert, Update, Delete.
+Console → Data Store → {Table} → Scopes and Permissions → App User → check Select, Insert, Update, Delete.
 
 **Fix Option 2 (admin-scope SDK):**
 ```javascript
@@ -292,9 +291,9 @@ Data Store does NOT support multi-statement transactions.
 **Workarounds:**
 - Use single ZCQL statements for bulk operations
 - Use optimistic concurrency: read `MODIFIEDTIME`, verify before writing
-- Use Circuits for multi-step workflows with saga patterns — **US DC only**; Circuits is not available in EU, AU, IN, JP, SA, or CA data centers
+- Use Circuits for multi-step workflows with saga patterns — **US DC only**; Circuits is not available in EU, AU, IN, JP, SA, CA, or UAE data centers
 
-> ⚠️ **DC restriction:** Circuits is **not available** in EU, AU, IN, JP, SA, or CA data centers.
+> ⚠️ **DC restriction:** Circuits is **not available** in EU, AU, IN, JP, SA, CA, or UAE data centers.
 > Before recommending Circuits, confirm the user's data center. For restricted DCs, use single ZCQL statements or optimistic concurrency instead.
 
 ---

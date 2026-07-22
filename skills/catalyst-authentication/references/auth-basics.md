@@ -101,8 +101,14 @@ catalyst.auth.signOut(window.location.origin);
 ### Check if logged in
 
 ```javascript
-const isLoggedIn = catalyst.auth.isUserAuthenticated();
-// Returns user object on success, rejects with 401 on failure
+// isUserAuthenticated() returns a Promise: resolves with the user object
+// when logged in, rejects with 401 when not.
+try {
+  const user = await catalyst.auth.isUserAuthenticated();
+  // logged in — `user` holds the current user object
+} catch (err) {
+  // not logged in (401)
+}
 ```
 
 **Embedded sign-in widget has no built-in signup flow.** `catalyst.auth.signIn("divId", config)` renders a login iframe only — there is no sign-up button inside it. For signup, build a custom form and call `catalyst.auth.signUp()`.
@@ -130,7 +136,7 @@ const res = await fetch('/server/my_api/execute', {
 
 By default, App Users have **Read-only** access. For Insert/Update/Delete:
 
-1. **Console (recommended):** Data Store → {Table} → Permissions → App User → enable all operations
+1. **Console (recommended):** Data Store → {Table} → Scopes and Permissions → App User → enable all operations
 2. **SDK:** Use `catalyst.initialize(req, { scope: 'admin' })` for data operations
 
 ---
@@ -248,7 +254,7 @@ VITE_CATALYST_ZAID=dev_zaid_value
 VITE_CATALYST_ZAID=prod_zaid_value
 ```
 
-Rebuild when promoting to production: `npm run build && catalyst deploy slate`
+Rebuild when promoting to production: `npm run build && catalyst deploy slate <name> -ni`
 
 ### Common Error: PATTERN_NOT_MATCHED
 

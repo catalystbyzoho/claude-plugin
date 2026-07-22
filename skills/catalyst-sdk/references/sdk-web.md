@@ -88,7 +88,7 @@ try {
 ### Sign Out
 
 ```javascript
-// ⚠️ REQUIRED: pass redirect URL — crashing without it
+// ⚠️ REQUIRED: pass a redirect URL — signOut throws without it
 catalyst.auth.signOut(window.location.origin);
 // For legacy Web Client:
 // catalyst.auth.signOut(window.location.origin + '/app/index.html');

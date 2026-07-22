@@ -1,24 +1,10 @@
-> **⚠️ PRE-FLIGHT CHECK (in order):**
+> **⚠️ PRE-FLIGHT (once per session):**
 >
-> **Step 1 — MCP connection (MUST come first).**
-> Check that `CatalystbyZoho_*` tools are available. If they are NOT, STOP immediately.
-> Do NOT check for `.catalystrc`, do NOT run any CLI commands, do NOT scaffold any files.
-> Guide the user to set up Zoho MCP first (see the SKILL.md setup instructions). Resume only after the user confirms MCP tools are visible.
+> **MCP gate first** — confirm the `ZohoMCP_*` meta-tools (`ZohoMCP_getSchema`, `ZohoMCP_executeTool`, `ZohoMCP_listTools`, `ZohoMCP_getFeatures`) are present in the tool list — that is the "MCP connected" signal (the `CatalystbyZoho_*` names never appear as tools). If they are NOT present, STOP: do not run CLI commands or scaffold files; guide the user through Zoho MCP setup (see the SKILL.md setup instructions) and resume only once they appear.
 >
-> **Step 2 — Project context.**
-> Run `CatalystbyZoho_List_All_Organizations` → `CatalystbyZoho_List_All_Projects` to confirm which org ID and project ID you are working with.
+> **Then run the canonical readiness gate** → `../../catalyst-basics/references/preflight.md`. It establishes + verifies org/project and covers scaffolding a missing project via `catalyst init --org <orgId> -p <projectId> -ni` (never interactive; never hand-create `.catalystrc`/`catalyst.json`).
 >
-> **Step 3 — Local scaffold check.**
-> Check whether `.catalystrc` and `catalyst.json` exist in the current directory.
-> - **If they exist:** proceed.
-> - **If they do NOT exist:** Run `catalyst init` non-interactively using the org ID and project ID from Step 2:
->   ```bash
->   catalyst init --org <orgId> -p <projectId> -ni
->   ```
->   **Never ask the user to run `catalyst init` interactively. Never create these files yourself.**
->
-> **Step 3b — Adding functions (non-interactive, CLI v1.27.0+).**
-> Once `catalyst.json` exists, add functions without any user interaction:
+> **Adding functions (non-interactive, CLI v1.27.0+).** Once `catalyst.json` exists, add functions without prompts:
 > ```bash
 > catalyst functions:add --name <name> --type <type> --stack <stack> -ni
 > ```
@@ -61,9 +47,9 @@ Required `catalyst.json` schema for a functions project:
 
 ### Deployment Command Note
 
-- Use `catalyst deploy --only functions:<function-name>` to deploy one function.
+- Use `catalyst deploy --only functions:<function-name> -ni` to deploy one function.
 - `functions:<name>` targets a specific function by its folder name.
-- Use `catalyst deploy --only functions` to deploy all functions at once.
+- Use `catalyst deploy --only functions -ni` to deploy all functions at once.
 
 ⚠️ **The URL shown after deploy is missing the `/execute` suffix.** The deploy output shows:
 ```
@@ -86,13 +72,15 @@ curl https://project-xxx.catalystserverless.com/server/my_function/execute
 |------|-----------|----------------------|----------|
 | Basic I/O | HTTP GET | `(context, basicIO)` | Optional (only if using Catalyst services) |
 | Advanced I/O | HTTP any method | `(req, res)` | `catalyst.initialize(req)` |
-| Event | Signals/Event Listeners | `(event, context)` | `catalyst.initialize(context)` |
-| Cron | Scheduled | `(cronDetails, context)` | `catalyst.initialize(context)` |
+| Event | **Signals** (Event Listeners deprecated) | `(event, context)` | `catalyst.initialize(context)` |
+| Cron | Scheduled (legacy — prefer Job) | `(cronDetails, context)` | `catalyst.initialize(context)` |
 | Integration | Zoho service triggers | `(event, context)` | `catalyst.initialize(context)` |
 | Job | Job Scheduling | `(jobData, context)` | `catalyst.initialize(context, { scope: 'admin' })` |
 | Browser Logic | SmartBrowz | Node.js: `module.exports.puppeteer = async (request, response, page)` — Java: `runner(HttpServletRequest, HttpServletResponse, ChromeDriver driver)` | Pre-initialized (browser injected) |
 
 **Critical:** never copy code between function types. Each type has a different handler signature and initialization pattern. Always start from the correct template.
+
+> **Legacy vs current (new projects):** The `event` and `cron` function types still exist and work, but the mechanisms around them have moved on. Trigger **Event** functions with **Signals** — the standalone *Event Listeners* service is deprecated. For scheduled work, prefer the **Job** function type with **Job Scheduling** — the standalone *Cron* scheduler is deprecated. Don't recommend Event Listeners or the standalone Cron service for new projects.
 
 ---
 
@@ -134,7 +122,7 @@ module.exports = (context, basicIO) => {
     console.error('Error:', error);
     basicIO.write(JSON.stringify({ error: error.message }));
   }
-  context.close();  // REQUIRED — without this, Catalyst waits until timeout (408)
+  context.close();  // REQUIRED — without this, Catalyst waits until the 30s timeout (504)
 };
 ```
 
@@ -205,10 +193,6 @@ module.exports = async (req, res) => {
   }
 };
 ```
-
-> **Legacy projects (node14/16/18)** use 4-parameter signature:
-> `module.exports = (catalystApp, context, req, res) => { ... }`
-> New CLI-initialized projects (node20+) use the 2-parameter format shown above.
 
 ### User-scope vs admin-scope
 
@@ -345,5 +329,5 @@ Check Catalyst Console → Functions → Logs after each deploy to see which `co
 | Function returns 404 after deploy | Using URL without `/execute` suffix | Append `/execute` to the URL shown in deploy output |
 | Function hangs / status `000` | Infinite loop, missing `response.end()`, or unhandled promise | Add `console.log` checkpoints; check Catalyst logs; verify all code paths call `res.end()` |
 | `catalyst.initialize is not a function` | Wrong import or wrong function type template | Ensure `const catalyst = require('zcatalyst-sdk-node')` and use `catalyst.initialize(req)` in Advanced I/O |
-| `context.close is not a function` | Used Advanced I/O template code in a Basic I/O function | Basic I/O uses `context.close()`, not `res.end()` — do not mix templates |
+| `context.close is not a function` | Called `context.close()` in an Advanced I/O function — that method only exists on the Basic I/O `context` | Advanced I/O ends the response with `res.end()`, not `context.close()` — do not mix templates |
 

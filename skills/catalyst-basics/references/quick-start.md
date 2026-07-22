@@ -22,80 +22,35 @@ via Slate, and ship without managing servers.
 
 ```bash
 npm install -g zcatalyst-cli
-catalyst login          # opens browser auth, stores credentials locally
-catalyst whoami         # confirm logged-in user
+catalyst login --dc <dc> -ni   # non-interactive; <dc> = us|eu|in|au|ca|sa|jp|uae
+catalyst whoami                # confirm logged-in user
 ```
+
+> `login` still opens a browser for OAuth sign-in (needs a human once) — the
+> `--dc <dc> -ni` flags only skip the data-center selection prompt. All other
+> commands below run fully non-interactively. Requires CLI v1.27.0+.
 
 ### Step 2 — Find your Org ID
 
 Open the Catalyst Console at `https://console.catalyst.zoho.com/baas/index`. Your Org ID appears in the URL once you're inside an org:
 `https://console.catalyst.zoho.com/baas/{OrgID}/index`
 
-Copy that number — you'll need it when prompted during `catalyst init`.
+Copy that number — you'll pass it as `--org <orgId>` to `catalyst init`.
 
-> **First time?** If you haven't created a Catalyst project yet, go to the console → **Create Project** first. Then return here. `catalyst init` only links to existing projects — it cannot create them.
+> **First time?** Your **first** Catalyst project must be created in the console → **Create Project**. After that, `catalyst init` can create or link additional projects from the CLI. If you have no project yet, create one in the console, then return here.
 
 ### Step 3 — Initialize the project
 
 ```bash
 mkdir my-app && cd my-app
-catalyst init
-# Follow the prompts:
-#
-# 1. "Select a default Catalyst organization for this directory:"
-#    Pick your organization from the list (arrow keys + Enter)
-#
-# 2. "Select a default Catalyst project for this directory:"
-#    Pick an existing project, OR select:
-#      [import a existing project] — link to a project by ID
-#      [create a new project]      — create one from the console first, then re-run
-#
-# 3. "Which are the features you want to setup for this folder?"
-#    (This step is optional — press Enter to skip)
-#    Space to select, Enter to confirm. Options:
-#      ◯ Functions: Configure and deploy http/non-http functions
-#      ◯ Client:    Configure and deploy client files
-#      ◯ AppSail:   Configure and deploy AppSails
-#      ◯ Slate:     Configure and deploy slate apps
-#
-# 4. If Functions selected:
-#    a) "Which type of function do you like to create?" (arrow keys)
-#         BasicIO       — simple request/response (use for most HTTP APIs)
-#         AdvancedIO    — raw HTTP control (req/res), full Express-style access
-#         Event         — triggered by Catalyst events (e.g. Data Store row insert)
-#         Cron          — runs on a schedule (cron expression)
-#         Browser Logic — Puppeteer-based headless browser automation
-#         Job           — long-running background job
-#         Integration   — triggered by Zoho service events (CRM, Desk, etc.)
-#
-#    b) "Which runtime do you prefer to write your function?" (arrow keys)
-#         ----Java----
-#           Java 25 / Java 21 / Java 17 / Java 11 / Java 8
-#         ---NodeJS---
-#           NodeJS 24 / NodeJS 22 / NodeJS 20 / NodeJS 18
-#         ---Python---
-#           Python 3.10 / Python 3.9
-#
-#    c) npm-init style questions (press Enter to accept defaults):
-#         package name:    (defaults to your project name)
-#         version:         (1.0.0)
-#         description:
-#         entry point:     (index.js)
-#         test command:
-#         git repository:
-#         keywords:
-#         author:
-#         license:         (ISC)
-#         Is this OK?      → press Enter (yes)
-#
-#    d) "Install all dependencies now?" → Yes (recommended)
-#
-# 5. If Slate selected:
-#      Select a framework → React + Vite (or your preference)
-#      App name → e.g. my-ui
-#      Modify default configurations? → No
-#      Development command → press Enter to accept default
+catalyst init --org <orgId> -p <projectId> -ni
 ```
+
+`catalyst init` links the org and project non-interactively. See `cli.md` for the
+full flag list, feature options, and the current supported runtime/stack list.
+
+> An interactive prompt walkthrough also exists (`catalyst init` with no flags),
+> but agents must always use the `-ni` form above — never rely on the prompts.
 
 This creates:
 - `catalyst.json` — project metadata (do not edit manually)
@@ -109,21 +64,15 @@ After `catalyst init`, open the Catalyst Console and navigate to your project. Y
 ### Step 5 — Add a function
 
 ```bash
-catalyst functions:add
-# Prompts (in order):
-#   1. Which type of function do you like to create?
-#        BasicIO / AdvancedIO / Event / Cron / Browser Logic / Job / Integration
-#   2. Which runtime do you prefer to write your function?
-#        Java: 25 / 21 / 17 / 11 / 8
-#        NodeJS: 24 / 22 / 20 / 18
-#        Python: 3.10 / 3.9
-#   3. npm-init style questions (package name, version, description,
-#      entry point, test command, git repository, keywords, author,
-#      license, Is this OK?)
-#   4. Install all dependencies now? → Yes
+catalyst functions:add --name <name> --type <type> --stack <stack> -ni
 ```
 
-This creates `functions/<your_function>/index.js` (for Node.js).
+Creates `functions/<name>/index.js` (for Node.js) non-interactively. For the full
+flag list and the current supported runtime/stack values, see `cli.md`.
+
+> An interactive form (`catalyst functions:add` with no flags — arrow-key menus for
+> type, stack, and npm-init fields) exists for humans, but agents must use the `-ni`
+> form above.
 
 A minimal Advanced I/O function (raw-http template):
 
@@ -138,67 +87,57 @@ module.exports = async (catalystApp, context, req, res) => {
 };
 ```
 
-### Step 6 — Serve locally
+### Step 6 — Serve and test locally (do this before every deploy)
+
+Catalyst has three environments — **Local** (your machine), **Development** (remote sandbox), and **Production** (remote, live). Local-first means: run and test on Local, *then* deploy to Development. `catalyst serve` runs your Functions/AppSail/Slate code locally, and calls to managed services (Data Store, Stratus, Cache, Auth, …) are proxied to the **Development** environment — so Local needs a Development env to work fully.
 
 ```bash
 catalyst serve
-# Runs functions at: http://localhost:3000/server/<function_name>/execute
+# The serve port is dynamic — the CLI prints the actual URL on startup.
+# Functions are served at: http://localhost:<port>/server/<function_name>/execute
 ```
 
-Test it:
+Test it (use the port `catalyst serve` printed on startup — it is dynamic, never hardcoded):
 ```bash
-curl http://localhost:3000/server/my_api/execute
+curl http://localhost:<port>/server/my_api/execute
+# then run any project tests, e.g.:
+npm test
 ```
 
-### Step 7 — Deploy
+Iterate locally until it works. Local iteration is fast and free; a failed remote deploy is slow and pollutes Development.
+
+### Step 7 — Deploy to Development
+
+Only once the local serve + test pass succeeds:
 
 ```bash
-catalyst deploy
+catalyst deploy -ni
 # or deploy only functions:
-catalyst deploy --only functions
+catalyst deploy --only functions -ni
 ```
 
 Your function is live at:
 `https://<project_domain>.catalystserverless.com/server/<function_name>/execute`
 
----
-
-## Create a Data Store table
-
-1. Open Console → your project → **Data Store**
-2. Click **Add Table** → enter a table name (e.g., `Tasks`)
-3. Click **Add Column** for each field:
-   - Column name (e.g., `Title`)
-   - Type: `Text`, `Number`, `Boolean`, `Date/DateTime`, `Email`
-4. Save the table
-
-Your table now has a `ROWID` column automatically (Catalyst's primary key).
-
-### Set row-level permissions
-
-1. Console → Data Store → your table → **Scopes and Permissions**
-2. Enable **App User** row (required for SDK operations from authenticated users)
-3. Check **Insert**, **Update**, **Delete** as needed
-4. Save
+Verify it on the Development URL, then promote to Production (`catalyst deploy --production -ni`) only after Development is verified — see the dev-to-prod checklist in `project-basics.md`.
 
 ---
 
-## Configure CORS / Authorized Domains
+## Create a table, set permissions, configure CORS
 
-If your Slate frontend calls a function and you get a CORS error in production:
+These are console tasks — see `console-ui-guide.md` for the click-by-click steps:
 
-1. Console → your project → **Settings** → **Authorized Domains**
-2. Click **Add Domain** → enter your Slate domain (e.g., `https://myapp-12345.catalystapps.com`)
-3. Enable the **CORS** toggle for that domain
-4. Save
+- **Create a Data Store table** with typed columns (`ROWID` primary key is auto-created).
+- **Scopes and Permissions** — enable App User Insert/Update/Delete (required for SDK writes from authenticated users; otherwise you get a 403).
+- **Authorized Domains + CORS toggle** — the Catalyst gateway injects the CORS headers automatically for authorized production origins; you only add CORS code in functions for `localhost` dev.
 
-> The Catalyst gateway injects the CORS headers automatically — you do NOT need CORS code in your function for production origins. CORS code in functions is only for local dev (`localhost`).
+> If Zoho MCP is connected, create tables directly via `CatalystbyZoho_Create_Table` instead of the console — see `../../catalyst-datastore/SKILL.md`.
 
 ## Common Errors
 
 | Error | Cause | Fix |
 |-------|-------|-----|
 | `catalyst: command not found` | CLI not installed globally | Run `npm install -g zcatalyst-cli` |
-| `catalyst.json` is `{}` after init | No project linked yet | Run `catalyst project:use <project-name>` in the project directory |
+| `catalyst.json` is `{}` after init | No project linked yet | Run `catalyst project:use <project-name> -ni` in the project directory |
 | Function 401 in browser but works with curl | Authentication required in Security Rules | Add `"authentication": "open"` to `catalyst-config.json` for public endpoints |
 | CORS error in production frontend | Domain not in Authorized Domains | Add the Slate/frontend domain in Console → Settings → Authorized Domains and enable CORS toggle |

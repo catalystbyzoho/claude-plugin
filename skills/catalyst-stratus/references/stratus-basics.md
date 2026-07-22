@@ -151,7 +151,7 @@ PUT https://{bucket_name}.zohostratus.com/{key}
 | `expires-after` | TTL in seconds (min: 60) — object is auto-deleted after this duration |
 | `x-user-meta:{key}={value};...` | Object metadata; max 2047 characters total |
 
-**OAuth scope required:** `Stratus.fileop.CREATE`
+**OAuth scope required:** `ZohoCatalyst.buckets.objects.CREATE`
 
 **Example:**
 ```bash
@@ -183,9 +183,9 @@ await axios.put(signedUrl, fileStream, {
 ## Upload Size Limits
 
 - **Single-shot upload**: up to **250 GB** per object
-- **Multipart upload**: recommended for files > 100 MB (part size: 5–100 MB each)
+- **Multipart upload**: recommended for files ≥ 100 MB (part size: 5–100 MB each)
 
-## Multipart Upload (> 100 MB)
+## Multipart Upload (≥ 100 MB)
 
 ```javascript
 const stratus = catalystApp.stratus();
@@ -428,7 +428,7 @@ module.exports = async (req, res) => {
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `NoSuchBucket` on first upload | Bucket not yet created in Console | Create bucket via Console → Stratus or MCP before any SDK call |
+| `NoSuchBucket` on first upload | Bucket not yet created in Console | Create bucket via Console → Stratus or MCP before any SDK call. If creating via MCP, complete the workspace readiness gate (`../../catalyst-basics/references/preflight.md`) once per session first so the bucket lands in the right project. |
 | `409 key_already_exists` | `putObject` called on an existing key with versioning OFF and `overwrite` not set (default `false`) | Pass `{ overwrite: true }` in options: `bucket.putObject(key, body, { overwrite: true })` |
 | Signed URL returns 403 | URL expired, wrong HTTP method used (GET URL used for PUT or vice versa), or bucket permissions too restrictive | Regenerate URL; ensure GET URL is used with HTTP GET and PUT URL with HTTP PUT |
 | `generatePreSignedUrl` fails with auth error | Not initialized with admin scope | Use `catalyst.initialize(req, { scope: 'admin' })` before calling `generatePreSignedUrl` |

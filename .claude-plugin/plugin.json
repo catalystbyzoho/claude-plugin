@@ -6,8 +6,8 @@
     "name": "Catalyst by Zoho",
     "url": "https://catalyst.zoho.com/"
   },
-  "homepage": "https://github.com/catalystbyzoho/agent-skills",
-  "repository": "https://github.com/catalystbyzoho/agent-skills.git",
+  "homepage": "https://github.com/catalystbyzoho/claude-plugin",
+  "repository": "https://github.com/catalystbyzoho/claude-plugin.git",
   "license": "Apache-2.0",
   "keywords": ["catalyst", "zoho", "mcp", "serverless", "cloud", "datastore", "zcql", "appsail", "stratus", "functions"]
 }
