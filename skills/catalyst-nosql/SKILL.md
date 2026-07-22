@@ -7,16 +7,7 @@ metadata:
 
 ## How It Works
 
-1. **NoSQL vs Data Store** — If the user is undecided, apply this matrix:
-
-   | | Catalyst Data Store | Catalyst NoSQL |
-   |---|---|---|
-   | Schema | Fixed, defined upfront | Flexible, per-item (no uniform structure required) |
-   | Query | ZCQL (SQL-like joins and filters) | Partition key + optional sort key |
-   | Data type | Structured, relational rows | Unstructured/semi-structured, JSON-format |
-   | Priority | ACID compliance, complex queries | High scalability, high write throughput |
-
-   **Rule:** If the user says "ZCQL", "join", "relational", or "fixed schema" — stop and load `catalyst-datastore` instead.
+1. **NoSQL vs Data Store** — Choose NoSQL for flexible/evolving per-item attributes, nested maps/arrays, and high-write-throughput key-value access; choose Data Store for a fixed relational schema, joins, or ACID/ZCQL access. Full comparison table in `references/nosql-basics.md`. **Rule:** if the user says "ZCQL", "join", "relational", or "fixed schema" — stop and load `catalyst-datastore` instead.
 2. **Load `references/nosql-basics.md`** — for SDK operations (`insertItems`, `fetchItem`, `updateItems`, `deleteItems`, `queryTable`) and the `NoSQLItem` builder.
 3. **Answer** — Provide the SDK method call with the correct table name, partition-key attribute, and `NoSQLItem` construction.
 

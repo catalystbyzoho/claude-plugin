@@ -39,9 +39,10 @@ These flags can be used with any command:
 | `-p`, `--project` | Specify the project ID or name to target |
 | `--org` | Specify the organization ID |
 | `--token` | Use a Catalyst auth token instead of interactive login |
-| `--dc` | Data center region: `us`, `eu`, `in`, `au`, `jp`, `sa`, `ca` |
+| `--dc` | Data center region: `us`, `eu`, `in`, `au`, `ca`, `sa`, `jp`, `uae` |
 | `--verbose` | Enable verbose/debug output for troubleshooting |
 | `-h`, `--help` | Show help for a command |
+| `-ni`, `--non-interactive` | Skip all interactive prompts — requires CLI v1.27.0+. Equivalent env var: `ZCATALYST_NON_INTERACTIVE=1` |
 
 ---
 
@@ -51,10 +52,13 @@ These flags can be used with any command:
 Authenticate with Zoho Catalyst. Opens a browser for OAuth by default.
 
 ```bash
+catalyst login --dc <dc> -ni    # Non-interactive (--dc is REQUIRED in NI mode)
 catalyst login                  # Interactive browser-based login
 catalyst login --no-localhost   # Use manual code entry (for remote/headless machines)
 catalyst login --force          # Force re-login even if already authenticated
 ```
+
+> **NI mode:** `--dc` is required. Valid values: `us`, `eu`, `in`, `au`, `ca`, `sa`, `jp`, `uae`. Logging into a different DC correctly switches the active data center.
 
 ### `catalyst logout`
 Log out of the current session, clearing stored credentials.
@@ -111,7 +115,9 @@ catalyst project:list
 Set the active project context for subsequent commands.
 
 ```bash
-catalyst project:use
+# ✅ Non-interactive — pass the project so the CLI never opens a selector
+catalyst project:use <name-or-id> -ni
+catalyst project:use <name-or-id> --org <org-id> -ni   # target a project in another org
 ```
 
 ### `catalyst project:reset`
@@ -126,101 +132,119 @@ catalyst project:reset
 ## Initialization & Setup
 
 ### `catalyst init`
-Initialize a Catalyst project in the current directory.
-
-**NOTE: `catalyst init` is fully interactive — it has no flags to skip prompts.** The only available flag is `--force`. For automated setups, see the workaround in the Safety Rules section.
+Initialize a Catalyst project in the current directory. **Supports non-interactive mode in CLI v1.27.0+** — use `--org`, `-p`, and `-ni` flags.
 
 ```bash
-catalyst init           # Interactive mode
-catalyst init --force   # Re-initialize, overwriting existing .catalystrc
+# ✅ Non-interactive (CLI v1.27.0+) — preferred for agents and CI/CD
+catalyst init --org <orgId> -p <projectId> -ni
+catalyst init --org <orgId> -p <projectId> -ni --force        # Re-initialize
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--force` | Overwrite existing project config (only available flag) |
+| `--project`, `-p` | Project name or ID to link — **required** in NI mode |
+| `--org` | Organization name or ID — conditional; required when more than one org exists |
+| `-ni` | Non-interactive mode (CLI v1.27.0+) |
+| `--force` | Overwrite existing `.catalystrc` |
 
-**Prompt sequence:**
-1. Select organization (arrow keys)
-2. Select project (arrow keys) — includes `[import a existing project]` and `[create a new project]` options
-3. Select features (space to toggle): `Functions`, `Client`, `AppSail`, `Slate` — optional, press Enter to skip
-4. If Functions: select function type → select runtime → npm-init style questions → install dependencies?
+> **NI mode limitation:** only linking an existing project is supported. Creating a new project requires the browser flow — create the project in the Catalyst console first, then run `catalyst init -ni` to link it.
 
 ### `catalyst functions:setup`
-Set up the functions directory structure in the current project.
-
-```bash
-catalyst functions:setup
-```
+**DISABLED in non-interactive mode.** Use `catalyst functions:add -ni` instead — it creates the directory structure and adds the function in one step.
 
 ### `catalyst functions:add`
-Add a new function to the project. **This is fully interactive** — it prompts for function name, type (arrow keys), and stack (arrow keys). There are NO non-interactive flags (unlike `init`, `appsail:add`, and `slate:create` which all support flags).
+Add a new function to the project. **Supports non-interactive mode in CLI v1.27.0+** — use `--name`, `--type`, `--stack`, and `-ni` flags. On older CLI versions the command is fully interactive (arrow-key menus).
 
 ```bash
-catalyst functions:add    # ⚠️ ALWAYS interactive — no --name/--type/--stack flags exist
+# ✅ Non-interactive (CLI v1.27.0+) — preferred for agents and CI/CD
+catalyst functions:add --name <name> --type <type> --stack <stack> -ni
+
+# Examples:
+catalyst functions:add --name api --type aio --stack node20 -ni
+catalyst functions:add --name scheduler --type cron --stack node20 -ni
+catalyst functions:add --name processor --type job --stack python_3_12 -ni
+
+# Interactive fallback (any CLI version)
+catalyst functions:add    # Arrow-key menus for name, type, stack
 ```
 
-**Known limitation for AI agents:** This is the only setup command that cannot be automated. The user MUST run it interactively for the first function in a project.
+| Flag | Description |
+|------|-------------|
+| `--name` | Function name (alphanumeric + underscores) |
+| `--type` | Function type: `bio`, `aio`, `event`, `cron`, `job`, `integ`, `browserlogic` |
+| `--stack` | Runtime stack (see values below) |
+| `--integ-service` | Integration service — **required when `--type integ`**. Valid values: `ZohoCliq`, `Convokraft` |
+| `--overwrite` | Overwrite existing function with the same name — **required in NI mode if function already exists** |
+| `-ni` | Non-interactive mode (CLI v1.27.0+) |
 
-**Agent workaround for subsequent functions:** Once the user has run `functions:add` at least once (so `catalyst.json` has a populated `functions` block), agents can add more functions by manually:
-1. Creating the directory: `functions/<new_function_name>/`
-2. Adding `functions/<new_function_name>/catalyst-config.json`:
-   ```json
-   {
-     "deployment": {
-       "name": "<new_function_name>",
-       "type": "advancedio",
-       "stack": "node20"
-     },
-     "execution": {
-       "main": "index.js"
-     }
-   }
-   ```
-   Valid `type` values: `basicio`, `advancedio`, `cron`, `job`, `event`, `integration`, `browserlogic`
-   (`browserlogic` for Browser Logic — NOT `browselogic`)
-   Valid `stack` values:
-     Node.js: `node24`, `node22`, `node20`, `node18`, `node16`, `node14`, `node12`
-     Java:    `java25`, `java21`, `java17`, `java11`, `java8`
-     Python:  `python_3_13`, `python_3_12`, `python_3_11`, `python_3_10`
-   (Prefer `node24` for new Node.js projects)
-3. Adding the function name to `catalyst.json` → `functions.targets` array:
-   ```json
-   {
-     "functions": {
-       "targets": ["existing_function", "new_function_name"],
-       "ignore": [],
-       "source": "functions"
-     }
-   }
-   ```
-4. Creating the entry point file (`index.js`, `main.py`, etc.) with the correct handler signature
-5. Running `npm init -y && npm install zcatalyst-sdk-node` in the function directory (for Node.js)
+**`--type` values:**
 
-**Important:** This workaround only works when `catalyst.json` already has a `functions` block from a prior `functions:add`. If no function has ever been registered, the user must run `functions:add` interactively first.
+| Value | Function type |
+|-------|--------------|
+| `bio` | Basic I/O |
+| `aio` | Advanced I/O |
+| `event` | Event function |
+| `cron` | Cron/scheduled function |
+| `job` | Job function |
+| `integ` | Integration function (requires `--integ-service`: `ZohoCliq` or `Convokraft`) |
+| `browserlogic` | Browser Logic (SmartBrowz) |
+
+**`--stack` values:**
+- Node.js: `node24`, `node22`, `node20`, `node18`, `node16`, `node14`, `node12` (prefer `node20` or `node24`)
+- Java: `java25`, `java21`, `java17`, `java11`, `java8`
+- Python: `python_3_13`, `python_3_12`, `python_3_11`, `python_3_10`
+
+**Legacy fallback (CLI < v1.27.0):** If the user cannot upgrade, ask them to run `functions:add` interactively and provide the name, type, and stack values to enter. Once they complete the interactive run, you can take over for the remaining implementation steps.
 
 ### `catalyst client:setup`
-Set up the client (frontend) directory in the current project.
+Set up the client (frontend) directory in the current project. **Supports non-interactive mode in CLI v1.27.0+** with `--type` and `--name` flags.
 
 ```bash
+# ✅ Non-interactive (CLI v1.27.0+)
+catalyst client:setup --type react --name <name> --flavour js -ni
+catalyst client:setup --type react --name <name> --flavour ts -ni
+catalyst client:setup --type angular --name <name> --routing --stylesheet scss -ni
+catalyst client:setup --type basic --name <name> -ni
+
+# If the client directory already exists, --overwrite is REQUIRED in NI mode
+catalyst client:setup --type basic --name <name> --overwrite -ni
+
+# Interactive fallback (any CLI version)
 catalyst client:setup
 ```
+
+| Flag | Description |
+|------|-------------|
+| `--type` | Client type: `react`, `angular`, `basic` (required for `-ni`) |
+| `--name` | Client application name (required for `-ni`) |
+| `--flavour` | `js` or `ts` — React only |
+| `--routing` | Enable routing — Angular only |
+| `--stylesheet` | `css`, `scss`, `sass`, `less` — Angular only |
+| `--overwrite` | Overwrite existing client directory — **required in NI mode if client dir already exists** |
 
 ### `catalyst appsail:add`
 Add an AppSail service. **ALWAYS use flags to avoid interactive prompts.**
 
+`--source` is required and determines the runtime automatically (directory path → managed runtime; Docker image/archive → custom runtime).
+
 ```bash
-catalyst appsail:add --name <name> --stack <stack>
-catalyst appsail:add --name <name> --stack <stack> --source <dir> --build <cmd> --platform <platform> --overwrite-config
+# Catalyst-managed runtime (source is a local directory)
+catalyst appsail:add --name <name> --source <dir> --stack <stack>
+catalyst appsail:add --name <name> --source <dir> --stack java21 --platform war --overwrite-config
+
+# Custom (Docker) runtime (source is a Docker image or archive)
+catalyst appsail:add --name <name> --source <image-or-archive> --port <port>
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--name` | Service name (required) |
-| `--stack` | Runtime stack, e.g. `node24`, `node22`, `java25`, `java21`, `python_3_13`, `python_3_12`, `python_3_11`, `python_3_10` (required) |
-| `--source` | Source directory path |
-| `--build` | Build command |
-| `--platform` | Target platform |
-| `--overwrite-config` | Overwrite existing config if present |
+| Flag | NI | Description |
+|------|----|-------------|
+| `--name` | Required | Service name |
+| `--source` | Required | Local source directory (managed) or Docker image/archive (custom) |
+| `--stack` | Required — managed runtime only | Runtime stack: `node24`, `node22`, `java25`, `java21`, `python_3_13`, `python_3_12`, `python_3_11`, `python_3_10` |
+| `--build` | Optional | Build path relative to source (managed only) |
+| `--platform` | Java only | `javase` or `war` |
+| `--port` | Custom runtime only | HTTP port |
+| `--overwrite-config` | Conditional | Required only to overwrite an existing service config |
 
 ---
 
@@ -229,16 +253,29 @@ catalyst appsail:add --name <name> --stack <stack> --source <dir> --build <cmd> 
 ### `catalyst functions:shell`
 Open an interactive shell for testing functions locally.
 
+**DISABLED in non-interactive mode.** Use `catalyst functions:execute` to run Event/Cron/Job/Integration functions from automation.
+
 ```bash
-catalyst functions:shell
+catalyst functions:shell    # Interactive only — not available with -ni
 ```
 
 ### `catalyst functions:execute`
-Execute a function locally.
+Execute a function locally. Use this instead of `functions:shell` in non-interactive mode.
 
 ```bash
-catalyst functions:execute
+catalyst functions:execute                        # Single function — runs automatically
+catalyst functions:execute <function_name>        # Required when more than one function exists
+catalyst functions:execute <function_name> --input '{"key":"value"}'   # Inline JSON input
+catalyst functions:execute <function_name> --input payload.json        # File input
+catalyst functions:execute <function_name> --input - --key myInput     # stdin input
 ```
+
+| Flag | NI | Description |
+|------|----|-------------|
+| `[function name]` | Conditional — required when more than one function exists | The function to run; auto-selected with a single function |
+| `--input <value>` | Optional | Function input — inline JSON, a file path, or `-` for stdin |
+| `--key <input key>` | Conditional — required when the function has multiple named inputs | Selects which input to use |
+| `--debug` | Optional | Enable debugging |
 
 ### `catalyst functions:config`
 View or modify function configuration.
@@ -252,28 +289,27 @@ catalyst functions:config --memory     # View/set memory allocation
 Delete a function.
 
 ```bash
-catalyst functions:delete --local      # Remove only from local project
-catalyst functions:delete --remote     # Remove from remote (deployed) project
+catalyst functions:delete <function_name> --local      # Remove only from local project (default in NI mode)
+catalyst functions:delete <function_name> --remote     # ⛔ BLOCKED in NI mode — delete locally only
 ```
+
+> **NI mode:** `<function_name>` positional argument is required in non-interactive mode — omitting it falls back to an interactive selector.
 
 ---
 
 ## Client
 
-### `catalyst client:setup`
-Initialize the client directory for the project.
-
-```bash
-catalyst client:setup
-```
+> For `catalyst client:setup` (including non-interactive `-ni` usage and all flags), see the **Initialization & Setup** section above.
 
 ### `catalyst client:delete`
 Delete the client component.
 
 ```bash
-catalyst client:delete --local     # Remove only from local project
-catalyst client:delete --remote    # Remove from remote (deployed) project
+catalyst client:delete --local     # Remove only from local project (default in NI mode)
+catalyst client:delete --remote    # ⛔ BLOCKED in NI mode — delete locally only
 ```
+
+> **NI mode caveat:** `client:delete --local` may still prompt interactively in some CLI versions despite `-ni`. If it does, manually remove the client entry from `catalyst.json` → `client.targets` array and delete the local client directory instead.
 
 ---
 
@@ -285,15 +321,16 @@ Slate is Catalyst's frontend framework scaffolding system. **NEVER scaffold manu
 Create a new Slate frontend project.
 
 ```bash
-catalyst slate:create --name <name> --framework <framework>
-catalyst slate:create --name <name> --framework <framework> --default
+# ✅ Non-interactive
+catalyst slate:create --name <name> --framework <framework> -ni
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--name` | Slate project name |
-| `--framework` | Framework to use (see table below) |
-| `--default` | Use default settings without prompts |
+| Flag | NI | Description |
+|------|----|-------------|
+| `--name` | Required | Slate app name |
+| `--framework` | Required | Framework to use (see table below) |
+| `--template <url>` | Optional | Template URL to initialize from |
+| `--default` | Ignored | Not applicable in NI mode — ignored with a warning |
 
 #### Framework Values
 
@@ -329,15 +366,32 @@ catalyst slate:create --name <name> --framework <framework> --default
 Link an existing local directory as a Slate project.
 
 ```bash
-catalyst slate:link
+# ✅ Non-interactive
+catalyst slate:link --source <path> -ni
+catalyst slate:link --source <path> --name <name> --framework <framework> -ni
 ```
+
+| Flag | NI | Description |
+|------|----|-------------|
+| `--source` | Required | Path to existing app directory |
+| `--name` | Optional | Slate app name |
+| `--framework` | Optional | Frontend framework — auto-detected from app if omitted |
+| `--template` | Ignored | Not applicable when linking |
+| `--default` | Ignored | Not applicable in NI mode |
 
 ### `catalyst slate:unlink`
 Unlink a Slate project from the Catalyst project.
 
 ```bash
-catalyst slate:unlink
+# ✅ Non-interactive
+catalyst slate:unlink --name <app-name> -ni
+catalyst slate:unlink --name <app-name> --remove-source -ni   # Also delete source directory
 ```
+
+| Flag | NI | Description |
+|------|----|-------------|
+| `--name` | Required | App to unlink — unknown/missing name fails with list of available apps |
+| `--remove-source` | Optional | Delete the source directory (kept by default) |
 
 ---
 
@@ -348,17 +402,17 @@ AppSail is for deploying full application servers (Express, Spring Boot, Flask, 
 **ALWAYS use flags to avoid interactive prompts.**
 
 ```bash
-# Node.js 18
-catalyst appsail:add --name my-api --stack node18
+# Node.js 22
+catalyst appsail:add --name my-api --source ./server --stack node22
 
-# Java 17 WAR
-catalyst appsail:add --name my-service --stack java17
+# Java 21 WAR
+catalyst appsail:add --name my-service --source ./server --stack java21
 
 # Python 3.13
-catalyst appsail:add --name my-app --stack python_3_13
+catalyst appsail:add --name my-app --source ./app --stack python_3_13
 
 # With all options
-catalyst appsail:add --name my-api --stack node18 --source ./server --build "npm run build" --platform linux --overwrite-config
+catalyst appsail:add --name my-api --source ./server --stack node22 --build ./build --overwrite-config
 ```
 
 ---
@@ -369,21 +423,24 @@ catalyst appsail:add --name my-api --stack node18 --source ./server --build "npm
 Import data into the Data Store from a CSV file.
 
 ```bash
-catalyst ds:import
+catalyst ds:import data.csv --table <TableName>
+catalyst ds:import data.csv --table <TableName> --production
 ```
 
 ### `catalyst ds:export`
 Export Data Store tables to CSV.
 
 ```bash
-catalyst ds:export
+catalyst ds:export <TableName>
+catalyst ds:export <TableName> --production
 ```
 
 ### `catalyst ds:status`
 Check the status of a Data Store import/export operation.
 
 ```bash
-catalyst ds:status
+catalyst ds:status import <jobid>
+catalyst ds:status export <jobid>
 ```
 
 ---
@@ -529,10 +586,19 @@ catalyst codelib:install
 
 ## Local Development
 
+> **Local is the first of Catalyst's three environments (Local → Development → Production).** `catalyst serve` runs your Functions, AppSail, and Slate code on your machine, while calls to managed backend features (Data Store, Stratus, NoSQL, Cache, Authentication, etc.) are **proxied to the Development environment** — Local has no standalone data plane, so it is coupled to Development. **Serve and test locally before every deploy.** The canonical environment model and the local-first loop live in `project-basics.md` → **Environments**.
+
 ### `catalyst serve`
-Start the local development server. Serves functions, client, and AppSail locally.
+Start the local development server. Serves functions, client, and AppSail locally; managed-service calls proxy to the Development environment.
 
 **IMPORTANT: The `catalyst serve` port is dynamic. Never hardcode the port. Never use Vite's dev server directly -- always use `catalyst serve`.**
+
+**Local test targets after `catalyst serve` starts** (use the dynamic port the CLI prints):
+- **Functions (HTTP):** `curl http://localhost:<port>/server/<function_name>/execute`
+- **Event/Cron/Job/Integration functions:** `catalyst functions:execute <name> --input '{…}'` (no HTTP trigger)
+- **AppSail:** hit the local server's routes at the printed URL
+- **Slate:** open the printed local URL in a browser and click through
+- Then run any project test suite (`npm test`, `pytest`, …). Only deploy once local tests pass.
 
 ```bash
 catalyst serve                          # Start with defaults
@@ -566,23 +632,27 @@ Deploy the project to Catalyst cloud.
 > ⚠️ **`catalyst deploy` silently overwrites environment variables** — only values defined in `catalyst-config.json` survive a deploy. Any env vars set through the Console are wiped on every deploy. Keep all env vars in `catalyst-config.json`, not the Console.
 
 ```bash
-catalyst deploy                         # Deploy everything
-catalyst deploy --only functions        # Deploy only functions
-catalyst deploy --only client           # Deploy only client
-catalyst deploy --except appsail        # Deploy everything except AppSail
+catalyst deploy -ni                        # Deploy everything
+catalyst deploy --only functions -ni       # Deploy only functions
+catalyst deploy --only client -ni          # Deploy only client
+catalyst deploy --except appsail -ni       # Deploy everything except AppSail
 ```
 
 #### AppSail Deploy Options
 
 ```bash
-catalyst deploy appsail
+# ✅ Non-interactive — pass --name/--source flags so the CLI never prompts
+catalyst deploy appsail --name <service-name> -ni
 ```
 
 #### Slate Deploy Options
 
 ```bash
-catalyst deploy slate -m "Deployment message"
-catalyst deploy slate --production       # Deploy to production (CAUTION)
+# ✅ Non-interactive — app name is required
+catalyst deploy slate <name> -ni
+catalyst deploy slate <name> -m "Deployment message" -ni
+catalyst deploy slate <name> --production -ni    # Deploy to production (CAUTION)
+catalyst deploy slate <name> --no-wait -ni       # Don't wait for completion
 ```
 
 | Flag | Description |
@@ -600,8 +670,21 @@ catalyst deploy slate --production       # Deploy to production (CAUTION)
 Pull remote project resources to local.
 
 ```bash
-catalyst pull
+# ✅ Non-interactive — feature and resource are required
+catalyst pull functions --resource <functionName> -ni
+catalyst pull functions --resource <fn1>,<fn2> -ni        # Multiple functions
+catalyst pull client --resource <version> -ni
+catalyst pull client --resource <version> --overwrite -ni  # Overwrite existing local files
+
+# If function already exists locally, --overwrite is REQUIRED in NI mode
+catalyst pull functions --resource <functionName> --overwrite -ni
 ```
+
+| Argument/Flag | NI | Description |
+|---------------|----|-------------|
+| `[feature]` | Required | Feature to pull: `functions`, `client` — one per run |
+| `--resource` | Required | Function name(s) or client version to pull (comma-separated for multiple) |
+| `--overwrite` | Required in NI if target exists locally | Skips without overwriting and exits with error in NI mode if omitted and target exists |
 
 ### `catalyst run-script`
 Run a custom script defined in the project.
@@ -649,14 +732,16 @@ catalyst <command> --help
 
 | Issue | Diagnosis | Solution |
 |-------|-----------|---------|
-| Login fails | Auth token expired or browser blocked | Run `catalyst login --force` or use `--no-localhost` for headless |
-| Wrong project targeted | Stale `.catalystrc` or context | Run `catalyst whoami`, then `catalyst project:use` or `catalyst init` |
-| Wrong data center | Mismatched `--dc` flag | Re-login with correct `--dc` (us/eu/in/au/jp/sa/ca) |
+| Login fails | Auth token expired or browser blocked | Run `catalyst login --dc <dc> --force -ni`, or add `--no-localhost` for headless |
+| Wrong project targeted | Stale `.catalystrc` or context | Run `catalyst whoami`, then `catalyst project:use <name-or-id> -ni` or `catalyst init --org <orgId> -p <projectId> -ni` |
+| Wrong data center | Mismatched `--dc` flag | Re-login with correct `--dc` (us/eu/in/au/ca/sa/jp/uae) |
 | Deploy fails | Missing config, build errors | Check `catalyst.json`, run `catalyst deploy --verbose` |
+| `Deploy fails: Invalid input value for name — Cannot have different name than <project-name>` | Client `package.json` `name` field does not match the Catalyst project name | Set `"name"` in `client/<app>/package.json` to exactly match the Catalyst project name (e.g. `"name": "bandwidth-cost"`) |
+| `client:delete --local` still prompts despite `-ni` | Known CLI edge case — confirmation prompt not suppressed in some versions | Manually remove the client folder name from `catalyst.json` → `client.targets` array and delete the local directory |
 | Env vars missing after deploy | `catalyst deploy` overwrites env vars with `catalyst-config.json` values — Console-set vars are lost | Move all env vars into `catalyst-config.json` before deploying |
 | Functions not found | Missing `catalyst-config.json` or wrong directory structure | Verify `functions/<name>/catalyst-config.json` exists |
 | Port conflicts | Another process using the port | Stop other servers; `catalyst serve` assigns ports dynamically |
-| Token expired | Stale auth token | Run `catalyst token:generate` or `catalyst login --force` |
+| Token expired | Stale auth token | Run `catalyst token:generate` or `catalyst login --dc <dc> --force -ni` |
 | IAC status stuck | Long-running import/export | Run `catalyst iac:status` to check progress |
 | DS import fails | Malformed CSV or schema mismatch | Verify CSV format matches table schema; run `catalyst ds:status` |
 
@@ -669,17 +754,19 @@ catalyst <command> --help
 
 ## Resource-First Development Order
 
-Always follow this order when building a Catalyst project:
+Always follow this order when building a Catalyst project. Steps 8–9 are the **local-first gate** — never skip them for freshly written or changed serve-able code:
 
-1. **Login**: `catalyst login`
-2. **Init**: `catalyst init` (interactive — select org, project, and features when prompted)
+1. **Login**: `catalyst login --dc <dc> -ni` (browser OAuth still needs the user once)
+2. **Init**: `catalyst init --org <orgId> -p <projectId> -ni` (non-interactive; use MCP tools to get org/project IDs)
 3. **Create tables**: Set up Data Store tables (via console or IAC)
 4. **Configure permissions**: Set table-level and row-level access
 5. **Seed data**: Import initial data with `catalyst ds:import`
-6. **Set up compute**: Add functions (`functions:add`), AppSail (`appsail:add`), or Slate (`slate:create`)
+6. **Set up compute**: Add functions (`catalyst functions:add --name <n> --type aio --stack node22 -ni`), AppSail (`appsail:add --name <n> --source <dir> --stack node22`), or Slate (`slate:create --name <n> --framework react-vite -ni`)
 7. **Write code**: Implement business logic using the Catalyst SDK
-8. **Serve locally**: `catalyst serve` (port is dynamic, never hardcode)
-9. **Deploy**: `catalyst deploy`
+8. **Serve locally**: `catalyst serve` (port is dynamic, never hardcode) — managed-service calls proxy to Development
+9. **Test locally**: exercise the component (curl the local function URL, hit AppSail routes, click through the Slate UI) and run the project's test suite; iterate here until it works — do NOT deploy untested code
+10. **Deploy to Development**: `catalyst deploy -ni` (only after local tests pass)
+11. **Verify in Development**, then **promote to Production** (`catalyst deploy --production -ni`) only once Development is verified — Production changes are migrated up, never authored directly
 
 ---
 

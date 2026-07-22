@@ -52,7 +52,7 @@ The skills are modularised — instead of one monolithic skill, each Catalyst se
 
 3. The plugin ships with the Catalyst MCP server **pre-configured** in `.mcp.json`, so Claude can manage Catalyst infrastructure (create tables, query data, manage cache/buckets) directly from the conversation — no manual MCP setup or URL generation required.
 
-   > **Region note:** `.mcp.json` defaults to the **US** data center endpoint (`https://catalystbyzoho.zohomcp.com/mcp/message`). If your Catalyst account is on a different DC (EU, IN, AU, JP, SA, CA), see the [Catalyst MCP server section](#catalyst-mcp-server) below.
+   > **Region note:** `.mcp.json` defaults to the **US** data center endpoint (`https://catalystbyzoho.zohomcp.com/mcp/message`). If your Catalyst account is on a different DC (EU, IN, AU, JP, SA, CA, UAE), see the [Catalyst MCP server section](#catalyst-mcp-server) below.
 
 ### Catalyst MCP server
 
@@ -71,7 +71,7 @@ It comes pre-wired in `.mcp.json`:
 }
 ```
 
-The default URL points to the **US** data center. If your Catalyst account lives in another region (EU, IN, AU, JP, SA, CA), update the `url` to the matching DC endpoint — or just ask Claude to switch it for you. The first time Claude invokes a Catalyst tool, you'll be prompted to authorize the connection.
+The default URL points to the **US** data center. If your Catalyst account lives in another region (EU, IN, AU, JP, SA, CA, UAE), update the `url` to the matching DC endpoint — or just ask Claude to switch it for you. The first time Claude invokes a Catalyst tool, you'll be prompted to authorize the connection.
 
 See `skills/catalyst-zoho-mcp/references/zoho-mcp.md` for the full list of available tools and verification steps.
 

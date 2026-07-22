@@ -1,19 +1,6 @@
 # Using Catalyst Skills with Claude Code
 
-## Installation
-
-Add the catalyst-skills repo to your Claude Code workspace:
-
-```bash
-# From your project directory
-git clone https://github.com/catalystbyzoho/agent-skills.git .catalyst-skills
-```
-
-Or install via the skills CLI if available:
-
-```bash
-npx skills add catalystbyzoho/agent-skills
-```
+> Shared steps — Installation, getting your Zoho MCP URL (MCP Setup Step 1), and the pre-flight checklist — are in `setup-common.md`. This file covers only what's specific to Claude Code.
 
 ## Skill Activation
 
@@ -21,50 +8,31 @@ Claude Code picks up skills automatically from the `skills/` directory. To verif
 
 1. Open Claude Code in your Catalyst project directory
 2. Ask: "What Catalyst skills are available?"
-3. Claude will list the active skills from `skills/SKILL.md`
+3. Claude will list the active skills from `catalyst-by-zoho/SKILL.md`
 
-## MCP Setup (Recommended)
+## MCP Setup — Step 2: Add the MCP server to your project
 
-Connect Zoho MCP so Claude can manage Catalyst infrastructure directly (create tables, list projects, etc.) without you copying IDs from the console.
-
-**Step 1 — Get your Zoho MCP URL:**
-1. Go to [mcp.zoho.com](https://mcp.zoho.com) and create or open an MCP server
-2. Under **Tools → Config Tools**, search for **"Catalyst by Zoho"** and add it
-3. Under **Connections**, set authorization to **"On Demand"**
-4. Click **Connect** → copy your server URL (format: `https://<server-name>-<org-id>.zohomcp.com/mcp/<auth-token>/message`)
-
-**Step 2 — Add to Claude Desktop config:**
-
-Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+First complete **Step 1** in `setup-common.md` to get your Zoho MCP URL. Claude Code reads MCP servers from a `.mcp.json` file in your **project root** (this is different from Claude Desktop, which uses `claude_desktop_config.json`). Create or edit `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "catalyst-by-zoho": {
       "type": "streamable-http",
-      "url": "https://<server-name>-<org-id>.zohomcp.com/mcp/<auth-token>/message"
+      "url": "https://catalyst.zohomcp.com/mcp/<auth-token>/message"
     }
   }
 }
 ```
 
-Alternatively, copy the `.mcp.json` file from this repo into your project root and replace the `<YOUR_ZOHO_MCP_URL>` placeholder.
+The simplest path is to copy the `.mcp.json` file from this repo into your project root and replace the `<YOUR_ZOHO_MCP_URL>` placeholder. Alternatively, run `claude mcp add` to register the server interactively.
 
-After saving, restart Claude. Confirm MCP is connected by looking for `CatalystbyZoho_*` in the tool list.
+After saving, restart Claude Code (or run `/mcp` to reconnect). Confirm MCP is connected by looking for the `ZohoMCP_*` meta-tools (`ZohoMCP_getSchema`, `ZohoMCP_executeTool`, `ZohoMCP_listTools`, `ZohoMCP_getFeatures`) in the tool list. (The `CatalystbyZoho_*` operations are not listed as tools — they are `tool_name` values you pass to `ZohoMCP_executeTool`.)
 
-## Pre-flight Checklist
+## Common Errors (Claude Code)
 
-Before asking Claude to write Catalyst code, ensure:
-
-- [ ] `catalyst login` has been run in your terminal
-- [ ] `catalyst init` has been run in the project directory
-- [ ] `.catalystrc` and `catalyst.json` exist at the project root
-- [ ] (Optional) Zoho MCP is connected and `CatalystbyZoho_*` tools appear in Claude
-
-## Common Errors
+See `setup-common.md` for errors common to all IDEs. Claude Code-specific:
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| Claude writes files without a project | `.catalystrc` or `catalyst.json` missing | Run `catalyst login` then `catalyst init` |
-| MCP tools not appearing | MCP config not saved or Claude not restarted | Save config and fully restart Claude |
-| Wrong project context | Multiple projects in `.catalystrc` | Run `catalyst project:use <project-name>` first |
+| MCP tools not appearing | `.mcp.json` not saved or Claude Code not reconnected | Save `.mcp.json` in the project root, then restart Claude Code or run `/mcp` |

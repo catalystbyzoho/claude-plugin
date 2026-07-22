@@ -1,6 +1,6 @@
 Install: `pip install zcatalyst-sdk`
 
-Requires **Python 3.9+**.
+Requires **Python 3.10+** (Catalyst function runtimes: 3.10–3.13).
 
 ---
 
@@ -62,6 +62,7 @@ table.delete_row(row_id)
 ## ZCQL
 
 ```python
+# NOTE: the ZCQL method name differs per SDK — Python: execute_query() / execute_olap_query(); Node.js: executeZCQLQuery()
 zcql_service = catalyst_app.zcql()
 
 rows = zcql_service.execute_query("SELECT * FROM TableName WHERE Name = 'Alice'")
@@ -174,28 +175,47 @@ result = catalyst_app.circuit().execute(circuit_id, {"key1": "value1"})
 nosql_service = catalyst_app.nosql()
 table = nosql_service.table("NoSQLTableName")
 
-table.insertItems([{"pk": "partition1", "sk": "sort1", "data": "value1"}])
-items = table.fetchItems([{"pk": "partition1", "sk": "sort1"}])
-results = table.queryTable({"pk": "partition1", "query": {"condition": "sk BEGINS_WITH 'sort'", "limit": 10}})
-table.updateItems([{"pk": "partition1", "sk": "sort1", "update_expression": "SET data = :val", "expression_values": {":val": "updated"}}])
-table.deleteItems([{"pk": "partition1", "sk": "sort1"}])
+# Items use Catalyst typed-JSON format: {"S": "..."} string, {"N": "123"} number
+table.insert_items({"item": {"pk": {"S": "partition1"}, "data": {"S": "value1"}}})
+
+# Updates use update_attributes operations — there is NO update_expression parameter
+table.update_items({
+    "keys": {"pk": {"S": "partition1"}},
+    "update_attributes": [
+        {"operation_type": "PUT", "attribute_path": ["data"], "update_value": {"S": "updated"}}
+    ]
+})
 ```
+
+> For `fetch_items`, `query_table`, and `delete_items` signatures, see the Python NoSQL reference at docs.catalyst.zoho.com; the item model mirrors the `catalyst-nosql` skill (`../../catalyst-nosql/references/nosql-basics.md`).
 
 ---
 
 ## Job Scheduling
 
 ```python
-pool = catalyst_app.job_scheduling().pool(pool_id)
+cron = catalyst_app.job_scheduling().cron()
 
-cron = pool.create_cron({
+# job_meta defines WHAT to execute — jobpool_name (or jobpool_id) lives here, not at cron level
+job_meta = {
+    "job_name": "generate_report",       # alphanumeric + underscores only
+    "target_type": "Function",
+    "target_name": "generate_report",    # or use target_id
+    "jobpool_name": "ReportPool",         # or jobpool_id
+    "params": {"report_type": "daily_summary"}  # optional
+}
+
+# Calendar daily: fixed time each day — cron_detail carries the schedule, repetition_type: "daily"
+cron.create_cron({
     "cron_name": "daily_report",
-    "target_function": "generate_report",
-    "cron_type": "calendar",
-    "cron_expression": "0 9 * * *",
-    "params": {"report_type": "daily_summary"}
+    "cron_status": True,
+    "cron_type": "Calendar",
+    "cron_detail": {"hour": 9, "minute": 0, "second": 0, "repetition_type": "daily"},
+    "job_meta": job_meta
 })
 ```
+
+> Cron shape mirrors the Node.js SDK's `job_meta` / `cron_detail` model — see `sdk-nodejs.md`. `cron_type` is one of `OneTime`, `Periodic`, `Calendar`, `CronExpression` (capitalized). The flat `target_function` / `cron_expression` shape is **not** valid.
 
 ---
 
@@ -204,7 +224,7 @@ cron = pool.create_cron({
 ```python
 push_service = catalyst_app.pushnotification()
 
-push_service.sendNotification({
+push_service.send_notification({
     "subject": "New Update",
     "message": "A new feature has been released.",
     "recipients": ["user_id_1", "user_id_2"]
@@ -219,20 +239,20 @@ push_service.sendNotification({
 zia_service = catalyst_app.zia()
 
 with open("document.png", "rb") as f:
-    ocr_result = zia_service.extractOpticalCharacters(f, {"language": "eng", "model_type": "OCR"})
+    ocr_result = zia_service.extract_optical_characters(f, {"language": "eng", "model_type": "OCR"})
 
-sentiment = zia_service.getSentimentAnalysis(["I love this!", "Terrible experience."])
-entities = zia_service.getNamedEntityRecognition(["Zoho Corporation is in Chennai, India."])
-keywords = zia_service.getKeywordExtraction(["Catalyst is a serverless platform."])
-analytics = zia_service.getAllTextAnalytics(["Zoho Catalyst makes development easy."])
+sentiment = zia_service.get_sentiment_analysis(["I love this!", "Terrible experience."])
+entities = zia_service.get_named_entity_recognition(["Zoho Corporation is in Chennai, India."])
+keywords = zia_service.get_keyword_extraction(["Catalyst is a serverless platform."])
+analytics = zia_service.get_all_text_analytics(["Zoho Catalyst makes development easy."])
 
 with open("image.jpg", "rb") as f:
-    moderation = zia_service.moderateImage(f)
-    faces = zia_service.detectFaces(f)
-    objects = zia_service.recognizeObjects(f)
+    moderation = zia_service.moderate_image(f)
+    faces = zia_service.detect_faces(f)
+    objects = zia_service.recognize_objects(f)
 
 with open("barcode.png", "rb") as f:
-    barcode = zia_service.scanBarcode(f)
+    barcode = zia_service.scan_barcode(f)
 ```
 
 ---
@@ -254,11 +274,11 @@ screenshot = smart_browz.take_screenshot({
     "navigation_options": {"wait_until": "networkidle2", "timeout": 60000}
 })
 
-output = smart_browz.generate_output_from_template({
-    "template_id": template_id,
-    "template_data": {"name": "Alice", "amount": "$100"},
-    "output_type": "pdf"
-})
+output = smart_browz.generate_from_template(
+    "153000000009001",  # template_id
+    template_data={"name": "Alice", "amount": "$100"},
+    output_options={"output_type": "pdf"}
+)
 ```
 
 > ⚠️ APM (Application Performance Monitoring) is NOT available for Python functions. Use logs only for Python performance monitoring.

@@ -21,8 +21,8 @@ Step-by-step navigation for the most common console tasks.
 3. `PROJECT_ID` is the numeric segment after `/project/`
 
 ### ZAID (Zoho Application ID)
-1. Console → your project → **Settings** → **App Settings**
-2. `ZAID` is listed under **Application ID**
+1. Console → your project → **Settings** → **Environments** → **General** tab
+2. `ZAID` is listed there (alongside the environment's API Key)
 
 > **Critical:** ZAID differs between Development and Production environments.
 > Always copy the ZAID for the environment you are configuring.
@@ -101,14 +101,14 @@ After creating a project in the console, link it to a local directory:
 
 ```bash
 cd my-app-folder
-catalyst init
+catalyst init --org <orgId> -p <projectId> -ni
 # or if project already exists:
-catalyst project:use "My Project Name"
+catalyst project:use "My Project Name" -ni
 ```
 
 Verify the link:
 ```bash
-cat catalyst.json        # should contain project_id and project_key
+cat .catalystrc          # should contain the project id and key
 catalyst whoami          # shows logged-in user
 ```
 
@@ -117,6 +117,6 @@ catalyst whoami          # shows logged-in user
 | Error | Cause | Fix |
 |-------|-------|-----|
 | Can't find ZAID in Settings | Wrong environment or viewing the wrong project | Confirm you are in the correct project AND environment (Dev vs Prod) |
-| Table ID not visible in URL | Some console versions show it differently | Use MCP tool `CatalystbyZoho_GetTableID` or run `catalyst datastore:list` |
+| Table ID not visible in URL | Some console versions show it differently | Use MCP tool `CatalystbyZoho_List_All_Tables` (returns each table's ID) |
 | CORS error despite domain being in Authorized Domains | CORS toggle is OFF, or protocol mismatch (`http` vs `https`) | Ensure toggle is ON; domain must include exact protocol |
 | App User Insert returns 403 | Insert not enabled in Scopes and Permissions | Enable Insert for App User in Data Store → table → Scopes and Permissions |

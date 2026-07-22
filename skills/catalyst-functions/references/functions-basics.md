@@ -1,25 +1,15 @@
-> **⚠️ PRE-FLIGHT CHECK (in order):**
+> **⚠️ PRE-FLIGHT (once per session):**
 >
-> **Step 1 — MCP connection (MUST come first).**
-> Check that `CatalystbyZoho_*` tools are available. If they are NOT, STOP immediately.
-> Do NOT check for `.catalystrc`, do NOT run any CLI commands, do NOT scaffold any files.
-> Guide the user to set up Zoho MCP first (see the SKILL.md setup instructions). Resume only after the user confirms MCP tools are visible.
+> **MCP gate first** — confirm the `ZohoMCP_*` meta-tools (`ZohoMCP_getSchema`, `ZohoMCP_executeTool`, `ZohoMCP_listTools`, `ZohoMCP_getFeatures`) are present in the tool list — that is the "MCP connected" signal (the `CatalystbyZoho_*` names never appear as tools). If they are NOT present, STOP: do not run CLI commands or scaffold files; guide the user through Zoho MCP setup (see the SKILL.md setup instructions) and resume only once they appear.
 >
-> **Step 2 — Project context.**
-> Run `CatalystbyZoho_List_All_Organizations` → `CatalystbyZoho_List_All_Projects` to confirm which project you are working in.
+> **Then run the canonical readiness gate** → `../../catalyst-basics/references/preflight.md`. It establishes + verifies org/project and covers scaffolding a missing project via `catalyst init --org <orgId> -p <projectId> -ni` (never interactive; never hand-create `.catalystrc`/`catalyst.json`).
 >
-> **Step 3 — Local scaffold check.**
-> Check whether `.catalystrc` and `catalyst.json` exist in the current directory.
-> - **If they exist:** proceed.
-> - **If they do NOT exist:** Do NOT run `catalyst init` yourself. The CLI uses interactive prompts (arrow-key menus, multi-select checkboxes) that cannot be reliably controlled from a terminal session. Instead, tell the user:
->
->   > Your project is not initialised yet. Please run the following command in your terminal and complete the prompts yourself, then come back:
->   > ```
->   > catalyst init
->   > ```
->   > When asked which features to set up, select **"Configure and deploy http/non-http functions"**. Once done, confirm here and I'll continue.
->
->   Wait for the user to confirm before proceeding.
+> **Adding functions (non-interactive, CLI v1.27.0+).** Once `catalyst.json` exists, add functions without prompts:
+> ```bash
+> catalyst functions:add --name <name> --type <type> --stack <stack> -ni
+> ```
+> Valid `--type` values: `bio`, `aio`, `event`, `cron`, `job`, `integ`, `browserlogic`
+> Valid `--stack` values: `node24`/`node22`/`node20`/`node18`, `java25`/`java21`/`java17`/`java11`/`java8`, `python_3_13`/`python_3_12`/`python_3_11`/`python_3_10`
 
 ## `catalyst-config.json` — `type` Field Values
 
@@ -57,9 +47,22 @@ Required `catalyst.json` schema for a functions project:
 
 ### Deployment Command Note
 
-- Use `catalyst deploy --only functions:<function-name>` to deploy one function.
+- Use `catalyst deploy --only functions:<function-name> -ni` to deploy one function.
 - `functions:<name>` targets a specific function by its folder name.
-- Use `catalyst deploy --only functions` to deploy all functions at once.
+- Use `catalyst deploy --only functions -ni` to deploy all functions at once.
+
+⚠️ **The URL shown after deploy is missing the `/execute` suffix.** The deploy output shows:
+```
+FUNCTION URL: https://{project}.catalystserverless.com/server/{function_name}/
+```
+The actual invocation URL requires `/execute` appended:
+```bash
+# ❌ Returns 404
+curl https://project-xxx.catalystserverless.com/server/my_function/
+
+# ✅ Works
+curl https://project-xxx.catalystserverless.com/server/my_function/execute
+```
 
 ---
 
@@ -69,13 +72,15 @@ Required `catalyst.json` schema for a functions project:
 |------|-----------|----------------------|----------|
 | Basic I/O | HTTP GET | `(context, basicIO)` | Optional (only if using Catalyst services) |
 | Advanced I/O | HTTP any method | `(req, res)` | `catalyst.initialize(req)` |
-| Event | Signals/Event Listeners | `(event, context)` | `catalyst.initialize(context)` |
-| Cron | Scheduled | `(cronDetails, context)` | `catalyst.initialize(context)` |
+| Event | **Signals** (Event Listeners deprecated) | `(event, context)` | `catalyst.initialize(context)` |
+| Cron | Scheduled (legacy — prefer Job) | `(cronDetails, context)` | `catalyst.initialize(context)` |
 | Integration | Zoho service triggers | `(event, context)` | `catalyst.initialize(context)` |
 | Job | Job Scheduling | `(jobData, context)` | `catalyst.initialize(context, { scope: 'admin' })` |
-| Browser Logic | SmartBrowz | `(catalystApp, context, browserData)` | Pre-initialized |
+| Browser Logic | SmartBrowz | Node.js: `module.exports.puppeteer = async (request, response, page)` — Java: `runner(HttpServletRequest, HttpServletResponse, ChromeDriver driver)` | Pre-initialized (browser injected) |
 
 **Critical:** never copy code between function types. Each type has a different handler signature and initialization pattern. Always start from the correct template.
+
+> **Legacy vs current (new projects):** The `event` and `cron` function types still exist and work, but the mechanisms around them have moved on. Trigger **Event** functions with **Signals** — the standalone *Event Listeners* service is deprecated. For scheduled work, prefer the **Job** function type with **Job Scheduling** — the standalone *Cron* scheduler is deprecated. Don't recommend Event Listeners or the standalone Cron service for new projects.
 
 ---
 
@@ -86,10 +91,14 @@ Required `catalyst.json` schema for a functions project:
 | Basic I/O | 30 seconds | Returns 504 |
 | Advanced I/O | 30 seconds | Returns 504 |
 | Event | 15 minutes | Silently terminated |
-| Cron | 15 minutes | Marked as failed |
+| Cron | **15 minutes** (900,000ms) | Marked as failed |
 | Integration | 30 seconds | Error to calling Zoho service |
-| Job | 15 minutes | Marked as failed |
+| Job | **15 minutes** (900,000ms) | Marked as failed |
 | Browser Logic | 30 seconds | Browser instance terminated |
+
+**Runtime-confirmed limits:** Cron and Job functions can query their max execution time via `context.getMaxExecutionTimeMs()` — returns `"900000"` (STRING, not number). Advanced I/O has a 30-second limit but no runtime API to read it.
+
+**Immediate vs scheduled jobs:** Jobs submitted via `job.submitJob()` or the Catalyst API (immediate/instant jobs) have the **same 15-minute timeout** as scheduled Job functions — runtime-confirmed (2min 11s sleep completed successfully).
 
 For tasks exceeding 30s, use Event/Job/Cron (15-min limit).
 For tasks exceeding 15 min, use AppSail (no timeout).
@@ -113,7 +122,7 @@ module.exports = (context, basicIO) => {
     console.error('Error:', error);
     basicIO.write(JSON.stringify({ error: error.message }));
   }
-  context.close();  // REQUIRED — without this, Catalyst waits until timeout (408)
+  context.close();  // REQUIRED — without this, Catalyst waits until the 30s timeout (504)
 };
 ```
 
@@ -185,10 +194,6 @@ module.exports = async (req, res) => {
 };
 ```
 
-> **Legacy projects (node14/16/18)** use 4-parameter signature:
-> `module.exports = (catalystApp, context, req, res) => { ... }`
-> New CLI-initialized projects (node20+) use the 2-parameter format shown above.
-
 ### User-scope vs admin-scope
 
 ```javascript
@@ -207,13 +212,46 @@ const zcql = adminApp.zcql();
 
 ### CORS for Slate → Function cross-domain
 
-**Do NOT set CORS headers in your function for production origins.** The Catalyst gateway injects
-them automatically (if Slate domain is in Authorized Domains → CORS toggle enabled).
+Catalyst provides **two mutually exclusive** ways to handle CORS. Using both at the same time causes duplicate headers and browser rejections.
 
-Only set CORS headers for `localhost` (local dev):
+#### Option 1: Authorized Domains (Recommended for Slate apps)
+
+Console → Authentication → Authorized Domains → add your Slate domain.
+
+⚠️ **When using Authorized Domains, do NOT add any CORS headers in your function code.** Catalyst injects them automatically. Adding headers manually causes:
+```
+Access-Control-Allow-Origin header contains multiple values
+'https://your-app.onslate.com, https://your-app.onslate.com'
+```
+The browser rejects this with a CORS error even though the origin is correct.
 
 ```javascript
-// Raw-http template — no app.use() or next() here. Add directly in your handler:
+// ❌ WRONG — causes duplicate headers when Authorized Domains is active
+function sendJson(res, statusCode, data) {
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': 'https://your-app.onslate.com', // ← remove this
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS', // ← remove this
+    'Access-Control-Allow-Headers': 'Content-Type'                 // ← remove this
+  });
+  res.end(JSON.stringify(data));
+}
+
+// ✅ CORRECT — let Catalyst handle CORS, only set Content-Type
+function sendJson(res, statusCode, data) {
+  res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(data));
+}
+```
+
+**Why this happens:** Authorized Domains injects `Access-Control-Allow-Origin` at the gateway level. When your function also sets it, the response carries two identical header values — which is invalid per the CORS spec and rejected by all browsers.
+
+#### Option 2: Manual CORS headers (for localhost dev or non-Slate consumers)
+
+Only use this when NOT using Authorized Domains. For `localhost` development:
+
+```javascript
+// Raw-http template — add directly in your handler:
 module.exports = async (req, res) => {
   const origin = req.headers.origin || '';
   if (/^http:\/\/localhost(:\d+)?$/.test(origin)) {
@@ -243,3 +281,53 @@ module.exports = async (req, res) => {
 ⚠️ Values like `no_auth`, `user_auth`, `admin_auth` do NOT exist.
 
 Security Rules are binary (public vs authenticated). For admin-only or per-route control, use API Gateway instead.
+
+---
+
+## Function Timeout Troubleshooting
+
+**Symptom:** Function doesn't respond, `curl` hangs or returns status `000`, no output in logs.
+
+**Common causes:**
+1. Infinite loop — e.g., `for await` loop missing opening `{` brace
+2. SDK initialization hanging — verify `CATALYST_PROJECT_ID` env is set or `catalyst.json` exists
+3. Unhandled promise rejection with no `catch` block
+4. Database query with no timeout that never resolves
+5. Missing `return` or `response.end()` in one or more code paths
+
+**Debug pattern — add checkpoints and always catch errors:**
+```javascript
+module.exports = async (req, res) => {
+  console.log('Function started');
+  try {
+    console.log('Initializing SDK');
+    const app = catalyst.initialize(req);
+    console.log('SDK initialized');
+
+    // your logic here
+
+    console.log('Sending response');
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+  } catch (err) {
+    console.error('ERROR:', err);
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: err.message }));
+  }
+};
+```
+
+Check Catalyst Console → Functions → Logs after each deploy to see which `console.log` was the last to fire.
+
+---
+
+## Common Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `Access-Control-Allow-Origin header contains multiple values` | Authorized Domains active + manual CORS headers in function code | Remove all CORS headers from function code — Catalyst adds them automatically via Authorized Domains |
+| Function returns 404 after deploy | Using URL without `/execute` suffix | Append `/execute` to the URL shown in deploy output |
+| Function hangs / status `000` | Infinite loop, missing `response.end()`, or unhandled promise | Add `console.log` checkpoints; check Catalyst logs; verify all code paths call `res.end()` |
+| `catalyst.initialize is not a function` | Wrong import or wrong function type template | Ensure `const catalyst = require('zcatalyst-sdk-node')` and use `catalyst.initialize(req)` in Advanced I/O |
+| `context.close is not a function` | Called `context.close()` in an Advanced I/O function — that method only exists on the Basic I/O `context` | Advanced I/O ends the response with `res.end()`, not `context.close()` — do not mix templates |
+

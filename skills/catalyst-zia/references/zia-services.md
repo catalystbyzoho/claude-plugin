@@ -13,7 +13,7 @@ Pricing: Pay-per-call. Refer to the `catalyst-pricing` skill for current rates a
 | Service | Availability |
 |---------|-------------|
 | Identity Scanner (Facial Comparison / Aadhaar) | **IN DC only** |
-| AutoML / QuickML | **Not available** in EU, AU, IN, JP, SA, CA |
+| AutoML / QuickML | **Not available** in EU, AU, IN, JP, SA, CA, UAE |
 | All other Zia services | All data centers |
 
 ---
@@ -163,4 +163,4 @@ module.exports = async (context, basicIO) => {
 | `API limit exceeded` on Zia call | Free tier Zia API call quota exhausted | Upgrade plan; cache Zia results for identical inputs to reduce repeat calls |
 | `Invalid file format` on image analysis | Unsupported MIME type sent | Supported formats: JPG, PNG, WEBP; convert before sending |
 | Zia response latency > 5s | Large image or complex document sent synchronously | For bulk processing, use a Job function + async dispatch rather than a Basic I/O function |
-| Identity Scanner or AutoML not available | DC restriction | Identity Scanner: IN DC only. AutoML/QuickML: not available in EU, AU, IN, JP, SA, CA |
+| Identity Scanner or AutoML not available | DC restriction | Identity Scanner: IN DC only. AutoML/QuickML: not available in EU, AU, IN, JP, SA, CA, UAE |

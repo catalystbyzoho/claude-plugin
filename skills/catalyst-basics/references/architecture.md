@@ -11,7 +11,7 @@ Use this file when a user asks "which Catalyst service should I use for X?" or i
 | If you need… | Use | Do NOT use |
 |---|---|---|
 | Stateless HTTP endpoints, event-driven logic, scheduled jobs, or Zoho service integrations | **Functions** | AppSail |
-| A persistent server process, WebSockets, long-running background workers, or a custom Docker container | **AppSail** | Functions |
+| A persistent server process, long-running background workers, or a custom Docker container | **AppSail** | Functions |
 | Visual workflow orchestration across multiple functions (parallel/sequential) | **Circuits** | Manual function chaining in code — *check DC restriction first* |
 
 **Rule:** Default to Functions. Reach for AppSail only when the process genuinely cannot be stateless. Functions bill per invocation; AppSail bills per instance uptime.
@@ -52,8 +52,8 @@ Use this file when a user asks "which Catalyst service should I use for X?" or i
 
 | If you need… | Use | DC restriction |
 |---|---|---|
-| OCR, face detection, text analytics, object detection, barcode scanning, content moderation | **Zia Services** | US DC only for AutoML; see Never Use table |
-| Train a custom ML model on your own data | **QuickML (AutoML)** | Not available in EU, AU, IN, JP, SA, CA |
+| OCR, face detection, text analytics, object detection, barcode scanning, content moderation | **Zia Services** | Pre-built Zia services have no DC restriction; only AutoML is US-DC-only (see row below) |
+| Train a custom ML model on your own data | **QuickML (AutoML)** | Not available in EU, AU, IN, JP, SA, CA, UAE |
 | Browser automation, web scraping, PDF generation | **SmartBrowz / Browser Logic** | No DC restriction |
 
 ---
@@ -62,8 +62,10 @@ Use this file when a user asks "which Catalyst service should I use for X?" or i
 
 | If you need… | Use | Do NOT use |
 |---|---|---|
-| Trigger logic when data changes in Catalyst services | **Signals** | ~~Event Listeners~~ (deprecated) |
-| Run a function on a schedule (cron-style) | **Job Scheduling** | ~~Cron~~ (deprecated) |
+| Trigger logic when data changes in Catalyst services | **Signals** | the standalone ~~Event Listeners~~ service (deprecated) |
+| Run a function on a schedule (cron-style) | **Job Scheduling** | the standalone ~~Cron~~ scheduler (deprecated) |
+
+> The Event and Cron *function types* are not deprecated — only the standalone Event Listeners and Cron services are. See `functions-basics.md` (Legacy vs current) for how to trigger them with Signals / Job Scheduling.
 | Zoho service integration (Cliq, etc.) | **Integration Functions** | *Check DC restriction first* |
 
 ---
@@ -128,14 +130,14 @@ Functions (API layer)
 
 Before recommending Circuits, Integration Functions, AutoML, Push Notifications, or Mobile Device Management — confirm the user's DC:
 
-| Service | US | EU | IN | AU | JP | SA | CA |
-|---------|----|----|----|----|----|----|-----|
-| Circuits | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Integration Functions | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| AutoML (QuickML) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Push Notifications | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ |
-| Identity Scanner (Zia) | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| All other services | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Service | US | EU | IN | AU | JP | SA | CA | UAE |
+|---------|----|----|----|----|----|----|----|-----|
+| Circuits | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Integration Functions | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| AutoML (QuickML) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Push Notifications | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Identity Scanner (Zia) | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| All other services | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 Source: https://docs.catalyst.zoho.com/en/
 

@@ -2,21 +2,16 @@
 
 > This file serves two purposes: (1) MCP tool routing for agents with Zoho MCP connected,
 > and (2) behavioral rules every agent should follow when working on Catalyst projects.
-> For complete SDK patterns, architecture guidance, and service details, use the full skill
-> at `skills/SKILL.md` and its reference files.
+> For complete SDK patterns, architecture guidance, and service details, use the relevant skill
+> under `skills/` (start with `skills/catalyst-basics/SKILL.md`) and its reference files.
 
 ---
 
 ## MCP Tool Usage
 
 - Leverage Catalyst services for serverless compute, relational data storage, object storage, AI/ML, and workflow orchestration.
-- When Zoho MCP tools (`CatalystbyZoho_*`) are available in your tool list, use them for infrastructure operations (create tables, query data, manage buckets/cache) instead of asking the user to do it manually in the console.
-- **Mandatory MCP pre-flight — Org → Project → Verify → Operate:**
-  1. `List_All_Organizations` → get org `id` (if multiple orgs, ask the user which one)
-  2. `List_All_Projects` (with `Catalyst-org` header) → get project `id` (if multiple projects, ask the user)
-  3. `List_All_Tables` → verify access works before any write operations
-  4. Only then proceed with create/update operations
-- If `.catalystrc` exists locally, read it first for the authoritative `project_id` and `env_id`, then cross-check with the MCP calls above.
+- When the Zoho MCP `ZohoMCP_*` meta-tools (`ZohoMCP_getSchema`, `ZohoMCP_executeTool`, `ZohoMCP_listTools`, `ZohoMCP_getFeatures`) are available in your tool list, MCP is connected — use it for infrastructure operations (create tables, query data, manage buckets/cache) instead of asking the user to do it manually in the console. Each operation is a `CatalystbyZoho_*` name passed as the `tool_name` argument to `ZohoMCP_executeTool` (fetch its schema first with `ZohoMCP_getSchema`); the `CatalystbyZoho_*` names are never shown as tools themselves.
+- **MCP pre-flight — follow the single canonical sequence:** `skills/catalyst-basics/references/preflight.md`. Run it **once per session** (not before every call — trust it once it passes). In short: establish the active org (`.catalystrc` → `projects[].env[].id`) and project (`projects[].id`), then confirm the MCP account and CLI agree via `CatalystbyZoho_Get_Project_By_Id` before you start operating. If `.catalystrc` is absent, resolve via `List_All_Organizations` → `List_All_Projects`. Do not restate the steps here — that file is authoritative.
 - Always default to `"Development"` environment unless the user explicitly requests production.
 - If `List_All_Tables` returns `PERMISSION_NEEDED`, ask the user for the correct project ID from their Catalyst console URL (format: `.../project/<project_id>/...`).
 - If the user asks to create tables, query data, manage cache, or set up infrastructure — use MCP tools directly instead of asking them to go to the console.
@@ -51,11 +46,20 @@ If Tier 2 reference files don't contain the answer, use a site-scoped web search
 
 ---
 
+## CLI Usage — always non-interactive
+
+- The `catalyst` CLI is interactive by default (arrow-key menus, prompts). Agents drive TUIs poorly, so **always run it in non-interactive (NI) mode.**
+- Enable NI mode any of three equivalent ways (requires CLI v1.27.0+): the `-ni` flag, the `--non-interactive` flag, or the env var `ZCATALYST_NON_INTERACTIVE=1`.
+- **Pass every input as a flag** so the CLI never has to prompt — e.g. `catalyst init --org <orgId> -p <projectId> -ni`, `catalyst functions:add --name <name> --type <type> --stack <stack> -ni`. The required flags per command are in `skills/catalyst-basics/references/cli.md`.
+- Interactive prompts exist for humans; **agents must never rely on them.** The one unavoidable exception is `catalyst login`, which opens a browser for OAuth — use `catalyst login --dc <dc> -ni` to skip the DC-selection prompt, but the browser sign-in itself needs the user.
+
+---
+
 ## Project Initialization
 
 - Before creating any files, check for `.catalystrc` and `catalyst.json` in the working directory.
 - If **both exist**: project is already initialized — do NOT re-scaffold or overwrite them.
-- If `catalyst.json` exists but `.catalystrc` is missing: project is not linked — instruct the user to run `catalyst login` then `catalyst init`.
+- If `catalyst.json` exists but `.catalystrc` is missing: project is not linked — instruct the user to run `catalyst login --dc <dc> -ni` then `catalyst init --org <orgId> -p <projectId> -ni` (non-interactive; see the CLI Usage rule above).
 - Only scaffold new project files if neither file exists.
 
 ---
@@ -63,19 +67,19 @@ If Tier 2 reference files don't contain the answer, use a site-scoped web search
 ## Code Conventions
 
 - Follow Catalyst's strict directory layout: functions go under `functions/`, web client under `client/`, `catalyst.json` at project root.
-- Always use the correct handler signature per function type — consult `references/functions-and-sdk.md` before writing any function code.
+- Always use the correct handler signature per function type — consult `skills/catalyst-functions/references/functions-basics.md` before writing any function code.
 - For AppSail, always use `process.env.X_ZOHO_CATALYST_LISTEN_PORT` with a fallback port (e.g., `|| 9000`).
 - When writing code that uses any Catalyst ID (Table ID, ZAID, Segment ID, Org ID, Project ID), always add an inline comment telling the user exactly where to find it in the console. Never leave ID placeholders unexplained.
-- Never recommend deprecated components (File Store, Event Listeners, Cron) for new projects. Use Stratus, Signals, and Job Scheduling instead.
+- For new projects, never recommend the deprecated **standalone services** — File Store, Event Listeners, and the standalone Cron scheduler. Use **Stratus** (storage), **Signals** (data-change triggers), and **Job Scheduling** (scheduled execution) instead. Note this is distinct from the function *types*: the **Event function type** is still current (trigger it with Signals, not Event Listeners), and scheduled work should use the **Job function type** with Job Scheduling rather than the legacy Cron function type.
 
 ---
 
 ## Deployment Preferences
 
-- Prefer `catalyst deploy` from the CLI over manual console uploads.
+- Prefer `catalyst deploy -ni` from the CLI over manual console uploads (always non-interactive — see the CLI Usage rule).
 - Always verify project structure matches Catalyst's requirements before suggesting deploy.
 - After deployment, recommend checking **DevOps → Logs** for execution errors on first invocation.
-- For cron jobs and event listeners, proactively suggest configuring Application Alerts.
+- For scheduled (Job Scheduling) and event-driven (Signals) functions, proactively suggest configuring Application Alerts.
 
 ---
 

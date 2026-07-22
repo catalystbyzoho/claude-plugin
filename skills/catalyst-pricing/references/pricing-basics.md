@@ -3,7 +3,7 @@
 ## Overview
 
 - **Pay-per-use** model with generous monthly free tiers.
-- **Free trial:** New customers get **$250 USD** in credits valid for 180 days.
+- **Free trial:** New customers get **$250 USD** in credits, valid for **60 days from the date claimed**.
 - **Minimum billing:** $5/project/month once any free tier limit is exceeded.
 - **No upfront commitments.** Subscription option also available.
 - Free tier is **account-wide** (shared across all projects).
@@ -142,9 +142,9 @@ Messages: **$0.0006 per message**
 ## Billing Rules
 
 1. **Free tier is account-wide** — shared across all projects.
-2. **Minimum $5/project/month** once any free tier limit exceeded. If usage = $7 across 2 projects: $7 + $5 = $12.
+2. **Minimum $5/project/month** once a project exceeds the free tier — the minimum is billed *per project*. Example: project A has $7 of billable usage and project B has $3 (below the $5 floor). A is billed its actual $7; B is billed the $5 minimum → $7 + $5 = $12.
 3. **Billable = Max(0, Usage - Free Tier)**. Cost = Billable × Unit Price.
-4. **Free trial credits ($250)** applied against invoices. After 180 days, normal billing begins.
+4. **Free trial credits ($250)** applied against invoices. Once the credits are exhausted or the 60-day trial period ends (whichever comes first), normal billing begins.
 
 ---
 
