@@ -1,9 +1,13 @@
 ---
 name: catalyst-slate
-description: "Catalyst Slate — Git-based frontend hosting for React, Next.js, Vue, Angular, Svelte, Astro, SolidJS, Preact and other frameworks with preview deploys. Trigger on 'Slate', 'frontend hosting', 'slate-config.toml', 'deploy React app', or 'cross-domain Slate to function'. Do NOT use for backend APIs or server-side logic — use catalyst-appsail or catalyst-functions instead."
+description: "Catalyst Slate — Git-based frontend hosting for React, Next.js, Vue, Angular, Svelte, Astro, SolidJS, Preact and other frameworks with preview deploys. Trigger on 'Slate', 'frontend hosting', 'slate-config.toml', 'deploy React app', 'cross-domain Slate to function', or ANY request to run/serve/start the frontend app locally (\"start the server locally\", \"run the app\", \"start the dev server\"). Do NOT use for backend APIs or server-side logic — use catalyst-appsail or catalyst-functions instead."
 metadata:
-  version: "2.2.0"
+  version: "2.3.0"
 ---
+
+> ## 🚦 To run the app locally, use plain `catalyst serve`
+>
+> For any "start the server / run the app / start locally" request, **prefer plain `catalyst serve`** (no `--only`) — it serves the whole project (Slate + Functions + AppSail) so the frontend can call your own backend. **NEVER** run the native dev server (`npm run dev`, `vite`, `next dev`, `ng serve`, …); it skips the Catalyst wrapper (`/__catalyst/sdk/init.js`, session cookie, ZAID, managed-service proxy), so **auth, `getCurrentUser`, and session-backed calls silently fail** though the UI renders — the #1 "auth broken locally" cause. Scope with `--only`/`--except` (e.g. `--only slate`) when a full serve errors out, or to isolate/speed up one component. Details: `references/slate-basics.md` → **CLI Commands**; auth testing: `../catalyst-authentication/`.
 
 ## How It Works
 
@@ -20,7 +24,7 @@ metadata:
 3. **Load `references/slate-basics.md`** — for framework setup, `slate-config.toml` format, and baseUrl configuration.
 4. **Cross-domain calls** — If the query involves calling functions from a Slate app, apply the full URL + `generateAuthToken()` + CORS whitelist pattern.
    > ⚠️ **Migrating from basic client hosting?** Relative paths like `/server/fn/execute` that worked in basic client **silently break on Slate** — Slate is served from `*.onslate.com` while functions are on `*.catalystserverless.com`. Every function call must become an absolute URL. Find and replace all relative `/server/...` paths with the full `https://<project>.catalystserverless.com/server/...` URL and add `generateAuthToken()` headers.
-5. **Serve & test locally, THEN deploy (local-first).** Before deploying, run `catalyst serve` (or `catalyst serve --only slate`), open the local URL the CLI prints, and click through the UI — verify the frontend renders and its function/API calls succeed (managed-service calls proxy to the Development environment). Run any frontend test/build (`npm test`, `npm run build`) at this stage. Iterate locally until it works.
+5. **Serve & test locally, THEN deploy (local-first).** Run plain `catalyst serve` (see the 🚦 rule above — never the native dev server), open the printed local URL, and click through the UI to verify the frontend renders and its function/API calls succeed (managed-service calls proxy to Development). Run any frontend test/build (`npm test`, `npm run build`). Iterate locally until it works.
 6. **Deploy to Development** — only after the local pass: `catalyst deploy slate <name> -ni` deploys to the current environment. Preview URLs are available after the build completes. Verify on the deployed URL before promoting to Production. Full loop: `../catalyst-basics/references/project-basics.md` → **Environments**.
 
 ## Triggers

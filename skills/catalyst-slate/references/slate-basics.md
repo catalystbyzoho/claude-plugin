@@ -19,13 +19,22 @@
 catalyst slate:create --name <name> --framework <framework> -ni    # Add Slate app
 catalyst slate:link --source <path> -ni       # Link existing dir
 catalyst slate:unlink --name <name> -ni       # Unlink a Slate app
-catalyst serve --only slate                   # Serve & test locally FIRST (do this before every deploy)
+catalyst serve                                # ✅ Run the app locally — serves Slate + Functions + AppSail together (preferred; see rule below)
+catalyst serve --only slate                   # Serve just Slate — for isolating a component or when a full serve errors out
 catalyst deploy slate <name> -ni              # Deploy a Slate app to Development
 catalyst deploy slate <name> -m "msg" -ni     # Deploy with message
 catalyst deploy slate <name> --production -ni # Deploy to Production ⚠️ (only after Development is verified)
 ```
 
-> **Local-first loop:** `catalyst serve --only slate`, open the local URL the CLI prints, click through
+> ⚠️ **Run locally with `catalyst serve` — never the native dev server** (`npm run dev`, `vite`,
+> `next dev`, `ng serve`, …). Only `catalyst serve` supplies the Catalyst wrapper (`/__catalyst/sdk/init.js`,
+> session cookies, ZAID, managed-service proxy); run the bundler directly and the UI renders but **auth,
+> `getCurrentUser`, login/signup, and session-backed function calls silently break**. Prefer plain
+> `catalyst serve` (no `--only`) — it serves Slate **plus** Functions and AppSail, so the frontend's calls to
+> your own backend also work locally. Scope with `--only`/`--except` (e.g. `--only slate`) when a full serve
+> errors out, or to isolate or speed up a single component.
+
+> **Local-first loop:** run `catalyst serve`, open the local URL the CLI prints, click through
 > the UI and confirm its function/API calls work (managed-service calls proxy to Development), then run
 > the build/tests. Deploy to Development only after this passes; promote to Production only after
 > verifying on the Development URL. Canonical model: `../../catalyst-basics/references/project-basics.md` → **Environments**.

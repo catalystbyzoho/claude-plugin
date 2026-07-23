@@ -2,8 +2,12 @@
 name: catalyst-authentication
 description: "Catalyst Authentication — user login/signup, ZAID, Web SDK auth flows, and OAuth token management via Connections. Trigger on 'authentication', 'login', 'signup', 'getCurrentUser', 'ZAID', 'isUserAuthenticated', 'signOut', 'Connections', or 'getAccessToken'. You MUST load this skill whenever implementing user login or protecting data — ZAID differs between Development and Production and is the #1 cause of auth failures after environment promotion. For Security Rules (function invocation control), route to catalyst-functions."
 metadata:
-  version: "2.0.2"
+  version: "2.1.0"
 ---
+
+> ## 🚦 Local auth requires plain `catalyst serve`
+>
+> Auth works locally **only** when the frontend is served through `catalyst serve`; prefer plain `catalyst serve` so Functions/AppSail run alongside Slate. **NEVER** use the native dev server (`npm run dev`, `vite`, `next dev`, `ng serve`, …) — it lacks the `/__catalyst/sdk/init.js` endpoint, session cookie, ZAID, and managed-service proxy, so login/signup, `getCurrentUser`, and `isUserAuthenticated` fail (401) though the page renders. If auth "doesn't work locally," check this first. See `../catalyst-slate/`.
 
 ## How It Works
 
@@ -15,6 +19,7 @@ metadata:
 
 ## Security Checklist
 
+- **Local auth requires `catalyst serve`** (never the native dev server) — see the 🚦 rule above.
 - **ZAID is environment-specific.** The Development ZAID is different from the Production ZAID. Social logins (Google, Facebook, LinkedIn, Microsoft) configured in Development MUST be reconfigured with the Production ZAID and production app domain before going live — using the wrong ZAID causes all social logins to silently fail in production.
 - **DataStore permissions are separate from function-level auth.** Requiring authentication in Security Rules only controls who can call the function. App User table permissions (Console → Table → Scopes and Permissions) separately control which DataStore operations authenticated users can perform.
 

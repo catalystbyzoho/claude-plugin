@@ -350,6 +350,8 @@ catalyst slate:create --name <name> --framework <framework> -ni
 
 #### `dev_command` per Framework (in `cli-config.json`)
 
+> These are what **`catalyst serve` runs internally** — configuration, **NOT** commands to run by hand. Run them directly and you lose the auth/session/managed-service layer; always start the app with `catalyst serve`.
+
 | Framework | Dev Command |
 |-----------|------------|
 | React + Vite | `npx vite --port $PORT` |
@@ -589,9 +591,11 @@ catalyst codelib:install
 > **Local is the first of Catalyst's three environments (Local → Development → Production).** `catalyst serve` runs your Functions, AppSail, and Slate code on your machine, while calls to managed backend features (Data Store, Stratus, NoSQL, Cache, Authentication, etc.) are **proxied to the Development environment** — Local has no standalone data plane, so it is coupled to Development. **Serve and test locally before every deploy.** The canonical environment model and the local-first loop live in `project-basics.md` → **Environments**.
 
 ### `catalyst serve`
-Start the local development server. Serves functions, client, and AppSail locally; managed-service calls proxy to the Development environment.
+Start the local development server. **Plain `catalyst serve` (no flags) serves the whole project — Functions, AppSail, and Slate — together**, which is almost always what you want. Managed-service calls (Data Store, Cache, Auth, …) proxy to the Development environment.
 
-**IMPORTANT: The `catalyst serve` port is dynamic. Never hardcode the port. Never use Vite's dev server directly -- always use `catalyst serve`.**
+> **Prefer plain `catalyst serve`; `--only`/`--except` narrow the scope.** Be aware narrowing can break local calls — `catalyst serve --only slate` excludes Functions/AppSail, so the frontend's calls to your own backend fail. Use scoping deliberately: to isolate or speed up one component, or as a fallback when a full serve errors out.
+
+**IMPORTANT: The `catalyst serve` port is dynamic — never hardcode it. To run a frontend/Slate app locally, ALWAYS use `catalyst serve`, NEVER the native dev server (`npm run dev`, `vite`, `next dev`, `ng serve`, …). Only `catalyst serve` supplies the Catalyst wrapper (`/__catalyst/sdk/init.js`, session cookies, ZAID, managed-service proxy); run the bundler directly and auth/session/managed-service calls silently fail though the UI renders.**
 
 **Local test targets after `catalyst serve` starts** (use the dynamic port the CLI prints):
 - **Functions (HTTP):** `curl http://localhost:<port>/server/<function_name>/execute`
